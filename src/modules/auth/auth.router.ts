@@ -20,25 +20,45 @@ router.post("/forgot-password", authController.forgotPassword);
 
 router.post(
   "/resend-forgot-otp",
-  auth(USER_ROLE.ADMIN, USER_ROLE.USER),
+  auth(
+    USER_ROLE.ADMIN,
+    USER_ROLE.CUSTOMER,
+    USER_ROLE.SUPPLIER,
+    USER_ROLE.DRIVER
+  ),
   authController.resendForgotOtpCode
 );
 
 router.post(
   "/verify-otp",
-  auth(USER_ROLE.ADMIN, USER_ROLE.USER),
+  auth(
+    USER_ROLE.ADMIN,
+    USER_ROLE.CUSTOMER,
+    USER_ROLE.SUPPLIER,
+    USER_ROLE.DRIVER
+  ),
   authController.verifyOtp
 );
 
 router.post(
   "/reset-password",
-  auth(USER_ROLE.ADMIN, USER_ROLE.USER),
+  auth(
+    USER_ROLE.ADMIN,
+    USER_ROLE.CUSTOMER,
+    USER_ROLE.SUPPLIER,
+    USER_ROLE.DRIVER
+  ),
   authController.resetPassword
 );
 
 router.post(
   "/change-password",
-  auth(USER_ROLE.ADMIN, USER_ROLE.USER),
+  auth(
+    USER_ROLE.ADMIN,
+    USER_ROLE.CUSTOMER,
+    USER_ROLE.SUPPLIER,
+    USER_ROLE.DRIVER
+  ),
   authController.changePassword
 );
 

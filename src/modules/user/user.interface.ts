@@ -12,7 +12,7 @@ export interface IUser {
   location: string;
   postalCode: string;
   dateOfBirth: Date;
-  role: string;
+  role: "customer" | "admin" | "supplier" | "driver";
   image: {
     public_id: string;
     url: string;
