@@ -1,4 +1,5 @@
 import { model, Schema } from "mongoose";
+import { applyEncryption } from "../../middleware/encryptionMiddleware";
 import { IJoinAsSupplier } from "./joinAsSupplier.interface";
 
 const JoinAsSupplierSchema = new Schema<IJoinAsSupplier>(
@@ -13,7 +14,7 @@ const JoinAsSupplierSchema = new Schema<IJoinAsSupplier>(
       enum: ["pending", "approved", "rejected"],
       default: "pending",
     },
-    phone: { type: String, required: true },
+    phone: { type: String, required: true, unique: true },
     email: { type: String, required: true },
     reasonForRejection: { type: String },
     warehouseLocation: { type: String, required: true },
@@ -33,6 +34,15 @@ const JoinAsSupplierSchema = new Schema<IJoinAsSupplier>(
     versionKey: false,
   }
 );
+
+applyEncryption(JoinAsSupplierSchema, [
+  "phone",
+  "address",
+  "warehouseLocation",
+  "city",
+  "state",
+  "zipCode",
+]);
 
 const JoinAsSupplier = model<IJoinAsSupplier>(
   "JoinAsSupplier",
