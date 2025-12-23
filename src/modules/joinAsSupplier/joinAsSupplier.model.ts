@@ -20,7 +20,10 @@ const JoinAsSupplierSchema = new Schema<IJoinAsSupplier>(
     city: { type: String, required: true },
     state: { type: String, required: true },
     zipCode: { type: String, required: true },
-    documentUrl: { type: String, required: true },
+    documentUrl: {
+      public_id: { type: String, required: true },
+      url: { type: String, required: true },
+    },
   },
   {
     timestamps: true,

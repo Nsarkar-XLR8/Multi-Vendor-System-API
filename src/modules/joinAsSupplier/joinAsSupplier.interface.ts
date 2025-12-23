@@ -15,7 +15,10 @@ export interface IJoinAsSupplier {
   city: string;
   state: string;
   zipCode: string;
-  documentUrl: string;
+  documentUrl: {
+    public_id: string;
+    url: string;
+  }
   createdAt: Date;
   updatedAt: Date;
 }
