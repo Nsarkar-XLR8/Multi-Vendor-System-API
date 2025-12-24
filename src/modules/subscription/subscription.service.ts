@@ -1,19 +1,20 @@
-import { StatusCodes } from 'http-status-codes';
-import AppError from '../../errors/AppError';
-import Subscription from './subscription.model'
-import sendEmail from '../../utils/sendEmail';
+import { StatusCodes } from "http-status-codes";
+import AppError from "../../errors/AppError";
+import sendEmail from "../../utils/sendEmail";
+import Subscription from "./subscription.model";
 
 const createSubscription = async (email: string) => {
   const isSubscribe = await Subscription.findOne({ email });
 
   if (isSubscribe) {
-    throw new AppError("This email is already subscribed!", StatusCodes.CONFLICT);
+    throw new AppError(
+      "This email is already subscribed!",
+      StatusCodes.CONFLICT
+    );
   }
   const result = await Subscription.create({ email });
   return result;
-
 };
-
 
 const getAllSubscriptionFromDb = async (query: Record<string, any>) => {
   const page = Number(query.page) || 1;
@@ -41,8 +42,6 @@ const getAllSubscriptionFromDb = async (query: Record<string, any>) => {
 const sendBulkEmail = async (subject: string, html: string) => {
   const subscribers = await Subscription.find({}, "email");
 
-  
-  
   // We use Promise.all to send emails in parallel for better performance
   const emailPromises = subscribers.map((sub) =>
     sendEmail({
@@ -56,10 +55,14 @@ const sendBulkEmail = async (subject: string, html: string) => {
   return results;
 };
 
-const sendIndividualEmail = async (id: string, subject: string, html: string) => {
+const sendIndividualEmail = async (
+  id: string,
+  subject: string,
+  html: string
+) => {
   const subscriber = await Subscription.findById(id);
   if (!subscriber) throw new AppError("Subscription not found", 404);
-  
+
   return await sendEmail({
     to: subscriber.email,
     subject,
@@ -69,14 +72,14 @@ const sendIndividualEmail = async (id: string, subject: string, html: string) =>
 
 const deleteSubcriptionFromDb = async (id: string) => {
   return await Subscription.findByIdAndDelete(id);
-}
+};
 
 const subscriptionService = {
   createSubscription,
   getAllSubscriptionFromDb,
   deleteSubcriptionFromDb,
   sendBulkEmail,
-  sendIndividualEmail
+  sendIndividualEmail,
 };
 
 export default subscriptionService;
