@@ -1,9 +1,9 @@
 import { Request, Response } from "express";
-import { StatusCodes } from 'http-status-codes';
-import catchAsync from "../../utils/catchAsync";
-import sendResponse from "../../utils/sendResponse"; 
-import subscriptionService from "./subscription.service";
+import { StatusCodes } from "http-status-codes";
 import AppError from "../../errors/AppError";
+import catchAsync from "../../utils/catchAsync";
+import sendResponse from "../../utils/sendResponse";
+import subscriptionService from "./subscription.service";
 
 const createSubscription = catchAsync(async (req: Request, res: Response) => {
   const { email } = req.body;
@@ -31,9 +31,12 @@ const getAllSubscription = catchAsync(async (req: Request, res: Response) => {
 
 const sendBulkEmail = catchAsync(async (req: Request, res: Response) => {
   const { subject, html } = req.body;
-  
+
   if (!subject || !html) {
-    throw new AppError("Please provide both subject and html content", StatusCodes.BAD_REQUEST);
+    throw new AppError(
+      "Please provide both subject and html content",
+      StatusCodes.BAD_REQUEST
+    );
   }
 
   await subscriptionService.sendBulkEmail(subject, html);
@@ -46,20 +49,27 @@ const sendBulkEmail = catchAsync(async (req: Request, res: Response) => {
 });
 
 const sendIndividualEmail = catchAsync(async (req: Request, res: Response) => {
-  const { id } = req.params; 
-  const { subject, html } = req.body; 
+  const { id } = req.params;
+  const { subject, html } = req.body;
 
   if (!subject || !html) {
-    throw new AppError("Subject and HTML are required", StatusCodes.BAD_REQUEST);
+    throw new AppError(
+      "Subject and HTML are required",
+      StatusCodes.BAD_REQUEST
+    );
   }
 
-  const result = await subscriptionService.sendIndividualEmail(id, subject, html);
+  const result = await subscriptionService.sendIndividualEmail(
+    id,
+    subject,
+    html
+  );
 
   sendResponse(res, {
     statusCode: StatusCodes.OK,
     success: true,
     message: "Email sent to individual subscriber!",
-    data: result, 
+    data: result,
   });
 });
 
@@ -84,7 +94,7 @@ const subscriptionController = {
   getAllSubscription,
   deleteSubcription,
   sendBulkEmail,
-  sendIndividualEmail
+  sendIndividualEmail,
 };
 
 export default subscriptionController;
