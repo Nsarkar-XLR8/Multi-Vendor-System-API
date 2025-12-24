@@ -20,5 +20,11 @@ router.get(
   joinAsSupplierController.getMySupplierInfo
 );
 
+router.get(
+  "/all-suppliers",
+  // auth(USER_ROLE.ADMIN),
+  joinAsSupplierController.getAllSuppliers
+);
+
 const joinAsSupplierRouter = router;
 export default joinAsSupplierRouter;

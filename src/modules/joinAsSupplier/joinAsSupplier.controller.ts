@@ -1,3 +1,4 @@
+import { StatusCodes } from "http-status-codes";
 import catchAsync from "../../utils/catchAsync";
 import sendResponse from "../../utils/sendResponse";
 import joinAsSupplierService from "./joinAsSupplier.service";
@@ -12,7 +13,7 @@ const joinAsSupplier = catchAsync(async (req, res) => {
   );
 
   sendResponse(res, {
-    statusCode: 200,
+    statusCode: StatusCodes.OK,
     success: true,
     message: "Successfully joined as supplier",
     data: result,
@@ -24,16 +25,29 @@ const getMySupplierInfo = catchAsync(async (req, res) => {
   const result = await joinAsSupplierService.getMySupplierInfo(email);
 
   sendResponse(res, {
-    statusCode: 200,
+    statusCode: StatusCodes.OK,
     success: true,
     message: "Supplier information retrieved successfully",
     data: result,
   });
 });
 
+const getAllSuppliers = catchAsync(async (req, res) => {
+  const result = await joinAsSupplierService.getAllSuppliers(req.query);
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: "All suppliers retrieved successfully",
+    data: result.data,
+    meta: result.meta,
+  });
+});
+
 const joinAsSupplierController = {
   joinAsSupplier,
   getMySupplierInfo,
+  getAllSuppliers,
 };
 
 export default joinAsSupplierController;
