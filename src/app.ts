@@ -4,14 +4,16 @@ import globalErrorHandler from "./middleware/globalErrorHandler";
 import notFound from "./middleware/notFound";
 import { applySecurity } from "./middleware/security";
 import router from "./router";
+import corsModule from "cors";
 
 const app: Application = express();
 
 // applySecurity(app);
 
+app.use(express.json());
 app.use(express.static("public"));
 
-app.use(express.json());
+app.use(corsModule());
 app.use(cookieParser());
 
 applySecurity(app);
@@ -26,3 +28,8 @@ app.use(notFound);
 app.use(globalErrorHandler);
 
 export default app;
+
+function cors(): any {
+  throw new Error("Function not implemented.");
+}
+
