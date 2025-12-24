@@ -3,7 +3,7 @@ import AppError from "../../errors/AppError";
 import generateShopSlug from "../../middleware/generateShopSlug";
 import { uploadToCloudinary } from "../../utils/cloudinary";
 import { User } from "../user/user.model";
-import { IJoinAsSupplier } from "./joinAsSupplier.interface";
+import { IJoinAsSupplier, IQuery } from "./joinAsSupplier.interface";
 import JoinAsSupplier from "./joinAsSupplier.model";
 
 const joinAsSupplier = async (
@@ -89,8 +89,74 @@ const getMySupplierInfo = async (email: string) => {
   return supplierInfo;
 };
 
+const getAllSuppliers = async (query: IQuery) => {
+  const page = Number(query.page) || 1;
+  const limit = Number(query.limit) || 10;
+  const skip = (page - 1) * limit;
+
+  const filter: any = {};
+
+  // ✅ Status filter
+  if (query.status) {
+    filter.status = query.status;
+  }
+
+  // ✅ CreatedAt filter for 1day and 7day
+  if (query.sort === "1day") {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    filter.createdAt = { $gte: yesterday };
+  }
+
+  if (query.sort === "7day") {
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    filter.createdAt = { $gte: sevenDaysAgo };
+  }
+
+  // ✅ Search by shopName, user firstName, lastName
+  const search = query.search
+    ? {
+        $or: [
+          { shopName: { $regex: query.search, $options: "i" } },
+          { "userId.firstName": { $regex: query.search, $options: "i" } },
+          { "userId.lastName": { $regex: query.search, $options: "i" } },
+        ],
+      }
+    : {};
+
+  const combinedFilter = { ...filter, ...search };
+
+  // ✅ Sorting
+  let sortOption: any = { createdAt: -1 }; // default newest first
+  if (query.sort === "atoz") {
+    sortOption = { shopName: 1 };
+  }
+
+  // ✅ Query
+  const suppliers = await JoinAsSupplier.find(combinedFilter)
+    .populate("userId", "firstName lastName email phone image")
+    .sort(sortOption)
+    .skip(skip)
+    .limit(limit);
+
+  const total = await JoinAsSupplier.countDocuments(combinedFilter);
+
+  return {
+    data: suppliers,
+    meta: {
+      page,
+      limit,
+      total,
+      totalPage: Math.ceil(total / limit),
+    },
+  };
+};
+
+
 const joinAsSupplierService = {
   joinAsSupplier,
   getMySupplierInfo,
+  getAllSuppliers,
 };
 export default joinAsSupplierService;

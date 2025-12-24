@@ -25,3 +25,11 @@ export interface IJoinAsSupplier {
   createdAt: Date;
   updatedAt: Date;
 }
+
+export interface IQuery {
+  page?: string;
+  limit?: string;
+  status?: "pending" | "approved" | "rejected";
+  sort?: "1day" | "7day" | "atoz";
+  search?: string;
+}
