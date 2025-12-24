@@ -71,7 +71,26 @@ const joinAsSupplier = async (
   return result;
 };
 
+const getMySupplierInfo = async (email: string) => {
+  const user = await User.isUserExistByEmail(email);
+  if (!user) {
+    throw new Error("Your account does not exist");
+  }
+
+  const isExistingSupplier = await JoinAsSupplier.findOne({ userId: user._id });
+  if (!isExistingSupplier) {
+    throw new Error("You have not applied to be a supplier");
+  }
+
+  const supplierInfo = await JoinAsSupplier.findOne({
+    userId: user._id,
+  }).populate("userId", "firstName lastName email phoneNumber");
+
+  return supplierInfo;
+};
+
 const joinAsSupplierService = {
   joinAsSupplier,
+  getMySupplierInfo,
 };
 export default joinAsSupplierService;
