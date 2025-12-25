@@ -4,7 +4,7 @@ import authRouter from "../modules/auth/auth.router";
 import contactRouter from "../modules/contact/contact.router";
 import subscriptionRouter from "../modules/subscription/subscription.router";
 import joinAsSupplierRouter from "../modules/joinAsSupplier/joinAsSupplier.router";
-import { joinAsDriverRouter } from "../modules/joinAsDriver/joinAsDriver.router";
+import joinAsDriverRouter  from "../modules/joinAsDriver/joinAsDriver.router";
 
 
 const router = Router();

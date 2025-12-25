@@ -10,22 +10,33 @@ const auth = (...roles: string[]) => {
     try {
       const extractedToken = req.headers.authorization;
       const token = extractedToken?.split(" ")[1];
+      
       if (!token) {
         throw new AppError("Invalid token", StatusCodes.UNAUTHORIZED);
       }
 
+      // 1. Verify the token
       const verifyUserData = verifyToken(token, config.JWT_SECRET as string);
-
+      
       req.user = verifyUserData;
 
+      // 2. Check Role Authorization
       if (roles.length && !roles.includes(verifyUserData.role)) {
         throw new AppError("You are not authorized!", StatusCodes.UNAUTHORIZED);
       }
 
       next();
     } catch (error: any) {
+      // --- DEBUG ERROR LOG ---
+      console.error("FULL AUTH ERROR:", error);
+
+      // 3. Use next(error) instead of throw
+      if (error instanceof AppError) {
+        return next(error);
+      }
+      
       logger.error("Authorization error:", error);
-      throw new AppError("You are not authorized", StatusCodes.UNAUTHORIZED);
+      next(new AppError("You are not authorized", StatusCodes.UNAUTHORIZED));
     }
   };
 };

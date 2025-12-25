@@ -13,6 +13,7 @@ export const applyEncryption = (schema: Schema, fields: string[]) => {
     });
     next();
   });
+// implement JoinAsDriver module with admin management and role promotion
 
   // Auto Encrypt before update
   schema.pre(["findOneAndUpdate", "updateOne"], function (next) {
