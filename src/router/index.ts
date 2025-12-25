@@ -4,6 +4,7 @@ import authRouter from "../modules/auth/auth.router";
 import contactRouter from "../modules/contact/contact.router";
 import subscriptionRouter from "../modules/subscription/subscription.router";
 import joinAsSupplierRouter from "../modules/joinAsSupplier/joinAsSupplier.router";
+import productRouter from "../modules/product/product.router";
 
 const router = Router();
 
@@ -28,6 +29,10 @@ const moduleRoutes = [
     path: "/join-as-supplier",
     route: joinAsSupplierRouter,
   },
+  {
+    path: "/product",
+    route: productRouter,
+  }
 ];
 
 moduleRoutes.forEach((route) => router.use(route.path, route.route));
