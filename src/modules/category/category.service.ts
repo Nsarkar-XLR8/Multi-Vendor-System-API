@@ -62,10 +62,20 @@ const updateCategory = async (id: string, payload: ICategory) => {
   return result;
 };
 
+const deleteCategory = async (id: string) => {
+  const isCategory = await category.findById(id);
+  if (!isCategory) {
+    throw new AppError("Category not found", StatusCodes.NOT_FOUND);
+  }
+
+  await category.findByIdAndDelete(id);
+};
+
 const categoryService = {
   createCategory,
   getCategories,
   updateCategory,
+  deleteCategory,
 };
 
 export default categoryService;
