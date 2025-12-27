@@ -6,12 +6,12 @@ export interface IProductImage {
 }
 
 export interface IProductVariant {
-  label: string; 
+  label: string;
   price: number;
   stock: number;
   sku?: string;
   unit: string;
-  minOrderQty?: number;
+  // minOrderQty?: number;
 }
 
 export interface ISEO {
@@ -24,6 +24,7 @@ export interface ISEO {
 export interface IProduct {
   _id?: Types.ObjectId;
   supplierId: Types.ObjectId;
+  // categoryId?: Types.ObjectId;
   name: string;
   slug: string;
   description: string;
@@ -34,9 +35,10 @@ export interface IProduct {
   priceFrom?: number;
   shelfLife?: string;
   originCountry?: string;
-  isHalal: boolean;
-  isOrganic: boolean;
+  isHalal?: boolean;
+  isOrganic?: boolean;
   isFrozen?: boolean;
+  isKosher?: boolean;
   seo: ISEO;
   averageRating: number;
   totalRatings: number;
