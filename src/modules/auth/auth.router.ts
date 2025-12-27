@@ -5,6 +5,8 @@ import { authValidationSchema } from "./auth.validation";
 import auth from "../../middleware/auth";
 import { USER_ROLE } from "../user/user.constant";
 import { loginLimiter } from "../../middleware/security";
+import { upload } from "../../middleware/multer.middleware";
+
 
 const router = Router();
 
@@ -60,6 +62,18 @@ router.post(
     USER_ROLE.DRIVER
   ),
   authController.changePassword
+);
+
+
+// A User who isn't identify as a isn't customer but can register directly as a Driver
+// Direct Driver Registration (Includes File Upload)
+router.post(
+  "/register-driver",
+  upload.fields([
+    { name: "documents", maxCount: 5 } // Frontend should use 'documents' key for files
+  ]),
+  validateRequest(authValidationSchema.driverRegistration), // Validate text fields
+  authController.registerDriver
 );
 
 const authRouter = router;

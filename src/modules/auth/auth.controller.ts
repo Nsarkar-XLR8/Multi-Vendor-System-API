@@ -3,6 +3,7 @@ import catchAsync from "../../utils/catchAsync";
 import sendResponse from "../../utils/sendResponse";
 import config from "../../config";
 import authService from "./auth.service";
+import userService from "../user/user.service";
 
 const login = catchAsync(async (req, res) => {
   const result = await authService.login(req.body);
@@ -96,6 +97,19 @@ const changePassword = catchAsync(async (req, res) => {
   });
 });
 
+
+const registerDriver = catchAsync(async (req, res) => {
+  // Logic to handle multipart/form-data (req.body + req.files)
+  const result = await userService.registerDriver(req.body, req.files);
+
+  sendResponse(res, {
+    statusCode: StatusCodes.CREATED,
+    success: true,
+    message: "Driver registration initiated. Please check your email for OTP.",
+    data: result,
+  });
+});
+
 const authController = {
   login,
   refreshToken,
@@ -104,6 +118,7 @@ const authController = {
   verifyOtp,
   resetPassword,
   changePassword,
+  registerDriver
 };
 
 export default authController;

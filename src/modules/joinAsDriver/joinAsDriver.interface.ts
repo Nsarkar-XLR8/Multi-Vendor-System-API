@@ -31,3 +31,4 @@ export interface IDriverQuery {
   sort?: "1day" | "7day" | "atoz";
   search?: string;
 }
+
