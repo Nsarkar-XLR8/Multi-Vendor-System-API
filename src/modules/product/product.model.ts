@@ -21,7 +21,7 @@ const ProductVariantSchema = new Schema<IProductVariant>(
     stock: { type: Number, required: true },
     sku: { type: String },
     unit: { type: String, required: true },
-    minOrderQty: { type: Number, default: 1 },
+    // minOrderQty: { type: Number, default: 1 },
   }
   //   { _id: false }
 );
@@ -44,6 +44,11 @@ const ProductSchema = new Schema<IProduct>(
       required: true,
       index: true,
     },
+    // categoryId: {
+    //   type: Schema.Types.ObjectId,
+    //   ref: "Category",
+    //   index: true,
+    // },
     name: { type: String, required: true, trim: true },
     slug: { type: String, required: true, unique: true },
     description: { type: String, required: true },
@@ -53,7 +58,7 @@ const ProductSchema = new Schema<IProduct>(
     },
     regionCategory: {
       type: Schema.Types.ObjectId,
-      ref: "RegionCategory",
+      ref: "category",
       required: true,
     },
     productType: { type: String, required: true },
@@ -67,6 +72,7 @@ const ProductSchema = new Schema<IProduct>(
     isHalal: { type: Boolean, default: false },
     isOrganic: { type: Boolean, default: false },
     isFrozen: { type: Boolean, default: false },
+    isKosher: { type: Boolean, default: false },
     seo: {
       type: SEOSchema,
       required: true,

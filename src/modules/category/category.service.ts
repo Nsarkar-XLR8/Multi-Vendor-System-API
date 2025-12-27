@@ -63,6 +63,11 @@ const updateCategory = async (id: string, payload: ICategory) => {
 };
 
 const deleteCategory = async (id: string) => {
+  throw new AppError(
+    "Here some logic part will be added don't worry",
+    StatusCodes.BAD_REQUEST
+  );
+
   const isCategory = await category.findById(id);
   if (!isCategory) {
     throw new AppError("Category not found", StatusCodes.NOT_FOUND);
