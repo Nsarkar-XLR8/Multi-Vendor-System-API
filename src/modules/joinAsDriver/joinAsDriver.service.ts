@@ -151,7 +151,7 @@ const getSingleDriver = async (id: string) => {
 };
 
 const deleteDriver = async (id: string) => {
-  const driver = await JoinAsDriver.findByIdAndDelete(id);
+  const driver = await JoinAsDriver.findById(id);
   if (!driver) {
     throw new AppError("Driver application not found", StatusCodes.NOT_FOUND);
   }
@@ -176,6 +176,26 @@ const deleteDriver = async (id: string) => {
 
 }
 
+// When a driver is approved by Admin
+const approveDriver = async (driverId: string) => {
+  const result = await JoinAsDriver.findByIdAndUpdate(
+    driverId,
+    { status: "approved" },
+    { new: true }
+  );
+  
+  if (!result) throw new AppError("Driver application not found", 404);
+  
+  // Optional: Send "Welcome to the Team" Email
+  await sendEmail({
+    to: result.email,
+    subject: "Application Approved!",
+    html: "<h1>Congratulations!</h1><p>You can now start accepting deliveries.</p>"
+  });
+
+  return result;
+};
+
 export const joinAsDriverService = {
   joinAsDriver,
   getMyDriverInfo,
@@ -183,5 +203,6 @@ export const joinAsDriverService = {
   updateDriverStatus,
   suspendDriver,
   getSingleDriver,
-  deleteDriver
+  deleteDriver,
+  approveDriver
 };

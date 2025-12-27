@@ -2,6 +2,7 @@ import bcrypt from "bcrypt";
 import { StatusCodes } from "http-status-codes";
 import config from "../../config";
 import AppError from "../../errors/AppError";
+import JoinAsDriver from "../joinAsDriver/joinAsDriver.model";
 import {
   deleteFromCloudinary,
   uploadToCloudinary,
@@ -11,6 +12,7 @@ import { createToken } from "../../utils/tokenGenerate";
 import verificationCodeTemplate from "../../utils/verificationCodeTemplate";
 import { IUser } from "./user.interface";
 import { User } from "./user.model";
+import mongoose from "mongoose";
 
 const registerUser = async (payload: IUser) => {
   const existingUser = await User.isUserExistByEmail(payload.email);
@@ -219,6 +221,78 @@ const updateUserProfile = async (payload: any, email: string, file: any) => {
   return result;
 };
 
+const registerDriver = async (payload: any, files: any) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    // 1. Check if user already exists
+    const existingUser = await User.isUserExistByEmail(payload.email);
+    if (existingUser && existingUser.isVerified) {
+      throw new AppError("Email already registered", StatusCodes.CONFLICT);
+    }
+
+    // 2. Prepare OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const hashedOtp = await bcrypt.hash(otp, 10);
+    const otpExpires = new Date(Date.now() + 5 * 60 * 1000);
+
+    // 3. Create User record (Authentication Layer)
+    // Ensure payload includes 'password' from Postman
+    const userData = {
+      firstName: payload.firstName,
+      lastName: payload.lastName,
+      email: payload.email,
+      password: payload.password, // MANDATORY for User Model
+      phone: payload.phone,
+      role: "driver",
+      otp: hashedOtp,
+      otpExpires,
+      isVerified: false,
+    };
+
+    const newUser = await User.create([userData], { session });
+
+    // 4. Create Driver Profile record (Profile Layer)
+    const driverData = {
+      userId: newUser[0]._id, // Matches your IJoinAsDriver interface
+      firstName: payload.firstName,
+      lastName: payload.lastName,
+      email: payload.email,
+      phone: payload.phone,
+      yearsOfExperience: payload.yearsOfExperience,
+      licenseExpiryDate: payload.licenseExpiryDate,
+      address: payload.address,
+      city: payload.city,
+      state: payload.state,
+      zipCode: payload.zipCode,
+      // Handle files from upload.fields(['documents'])
+      documentUrl: files?.documents?.map((file: any) => ({
+        public_id: file.filename,
+        url: file.path,
+      })) || [],
+      status: "pending",
+    };
+
+    await JoinAsDriver.create([driverData], { session });
+
+    // 5. Send verification email
+    await sendEmail({
+      to: newUser[0].email,
+      subject: "Verify your Driver Account",
+      html: verificationCodeTemplate(otp),
+    });
+
+    await session.commitTransaction();
+    session.endSession();
+
+    return newUser[0];
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    throw error;
+  }
+};
 const userService = {
   registerUser,
   verifyEmail,
@@ -227,6 +301,7 @@ const userService = {
   getMyProfile,
   updateUserProfile,
   getAdminId,
+  registerDriver
 };
 
 export default userService;
