@@ -8,13 +8,8 @@ import { IDriverQuery, IJoinAsDriver } from "./joinAsDriver.interface";
 import JoinAsDriver from "./joinAsDriver.model";
 import mongoose from "mongoose";
 
-const getMyDriverInfo = async (email: string) => {
-  const user = await User.isUserExistByEmail(email);
-  return await JoinAsDriver.findOne({ userId: user?._id }).populate(
-    "userId",
-    "firstName lastName email image"
-  );
-};
+
+
 
 const getAllDrivers = async (query: IDriverQuery) => {
   const page = Number(query.page) || 1;
@@ -24,13 +19,16 @@ const getAllDrivers = async (query: IDriverQuery) => {
   const filter: any = {};
   if (query.status) filter.status = query.status;
 
+  // Search Logic Fix: If searching by name/email, we usually search the User collection 
+  // and then filter the Driver profiles. For now, let's stick to driver-specific fields 
+  // or use a more advanced aggregation if needed.
   const search = query.search
     ? {
-      $or: [
-        { firstName: { $regex: query.search, $options: "i" } },
-        { email: { $regex: query.search, $options: "i" } },
-      ],
-    }
+        $or: [
+          { firstName: { $regex: query.search, $options: "i" } }, // Driver profile name
+          { email: { $regex: query.search, $options: "i" } },     // Driver profile email
+        ],
+      }
     : {};
 
   const drivers = await JoinAsDriver.find({ ...filter, ...search })
@@ -46,6 +44,18 @@ const getAllDrivers = async (query: IDriverQuery) => {
   };
 };
 
+const getMyDriverInfoFromDB = async (userIdFromToken: string) => {
+  // Use the ID from JWT to find the document where userId matches
+  const result = await JoinAsDriver.findOne({ userId: userIdFromToken }).populate(
+    "userId",
+    "firstName lastName email image role"
+  );
+
+  if (!result) {
+    throw new AppError("Driver profile not found. Please register as a driver.", StatusCodes.NOT_FOUND);
+  }
+  return result;
+};
 
 const updateDriverStatus = async (id: string, status: "approved" | "rejected") => {
   const session = await mongoose.startSession();
@@ -74,7 +84,7 @@ const updateDriverStatus = async (id: string, status: "approved" | "rejected") =
       // 3. Send Unified Approval Email
       await sendEmail({
         to: driverApp.email,
-        subject: "Application Approved - Welcome to VendoPOS!",
+        subject: "Application Approved - Welcome to Vendo Food Distribution System!",
         html: sendTemplateMail({
           type: "success",
           email: driverApp.email,
@@ -169,7 +179,7 @@ const deleteDriver = async (id: string) => {
     }
 
     // 2. Decide: Delete User or just revert Role?
-    // Usually, we just revert the role back to 'customer'
+    // Usually, revert the role back to 'customer'
     await User.findByIdAndUpdate(driver.userId, { role: "customer" }, { session });
 
     // 3. Delete the Driver Application
@@ -185,6 +195,29 @@ const deleteDriver = async (id: string) => {
   }
 };
 
+const updateMyProfileInDB = async (id: string, payload: Partial<IJoinAsDriver>) => {
+  // 1. Check if the driver profile exists
+  const isDriverExist = await JoinAsDriver.findOne({ userId: id });
+  if (!isDriverExist) {
+    throw new AppError("Driver profile not found", StatusCodes.NOT_FOUND);
+  }
+
+  // 2. SECURITY: Remove fields the driver is NOT allowed to change
+  const restrictedFields = ["status", "userId", "isSuspended", "suspendedUntil"];
+  restrictedFields.forEach((field) => delete (payload as any)[field]);
+
+  // 3. Update the document
+  const result = await JoinAsDriver.findOneAndUpdate(
+    { userId: id }, // Match by the User ID from token
+    payload, 
+    {
+      new: true,
+      runValidators: true,
+    }
+  ).populate("userId", "firstName lastName email image");
+
+  return result;
+};
 
 
 const registerDriverUnified = async (payload: any, files: any, currentUser?: any) => {
@@ -266,12 +299,13 @@ const registerDriverUnified = async (payload: any, files: any, currentUser?: any
 
 export const joinAsDriverService = {
 
-  getMyDriverInfo,
+  getMyDriverInfoFromDB,
   getAllDrivers,
   updateDriverStatus,
   suspendDriver,
   getSingleDriver,
   deleteDriver,
   registerDriverUnified,
+  updateMyProfileInDB
 
 };

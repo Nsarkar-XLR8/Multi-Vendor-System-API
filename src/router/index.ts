@@ -32,6 +32,10 @@ const moduleRoutes = [
     route: joinAsSupplierRouter,
   },
   {
+    path: "/admin/driver", // This handles all your admin-prefixed requests
+    route: joinAsDriverRouter,
+  },
+  {
     path: "/driver",
     route: joinAsDriverRouter,
   },

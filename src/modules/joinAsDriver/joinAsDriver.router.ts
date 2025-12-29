@@ -9,42 +9,55 @@ const router = Router();
 
 
 
+// --- DRIVER SELF-SERVICE ---
+// Access: {{baseUrl}}/driver/my-info
 router.get(
   "/my-info",
-  auth(USER_ROLE.CUSTOMER, USER_ROLE.DRIVER),
+  auth(USER_ROLE.DRIVER),
   joinAsDriverController.getMyDriverInfo
 );
 
-// Admin Routes
-router.put(
-  "/update-status/:id",
-  auth(USER_ROLE.ADMIN),
-  joinAsDriverController.updateDriverStatus
-);
-router.put(
-  "/suspend/:id",
-  auth(USER_ROLE.ADMIN),
-  joinAsDriverController.suspendDriver
+router.patch(
+  "/update-my-info",
+  auth(USER_ROLE.DRIVER),
+  joinAsDriverController.updateMyProfile
 );
 
+// --- ADMIN MANAGEMENT ---
+// Access: {{baseUrl}}/admin/driver/all-drivers
 router.get(
   "/all-drivers",
   auth(USER_ROLE.ADMIN),
   joinAsDriverController.getAllDrivers
 );
 
+// Access: {{baseUrl}}/admin/driver/suspend/:id
+router.put(
+  "/suspend/:id",
+  auth(USER_ROLE.ADMIN),
+  joinAsDriverController.suspendDriver
+);
+
+// Access: {{baseUrl}}/admin/driver/single/:id
 router.get(
-  "/:id",
+  "/single/:id",
   auth(USER_ROLE.ADMIN),
   joinAsDriverController.getSingleDriver
 );
 
+// Access: {{baseUrl}}/admin/driver/update-status/:id
+router.put(
+  "/update-status/:id",
+  auth(USER_ROLE.ADMIN),
+  joinAsDriverController.updateDriverStatus
+);
+
+// Access: {{baseUrl}}/admin/driver/delete/:id
 router.delete(
-  "/:id",
+  "/delete/:id",
   auth(USER_ROLE.ADMIN),
   joinAsDriverController.deleteDriver
 );
-
 
 
 // Public route for first-time visitors and Also Checking if user is logged in

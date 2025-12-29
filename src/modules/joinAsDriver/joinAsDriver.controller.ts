@@ -3,29 +3,30 @@ import catchAsync from "../../utils/catchAsync";
 import sendResponse from "../../utils/sendResponse";
 import { joinAsDriverService } from "./joinAsDriver.service";
 
-// const joinAsDriver = catchAsync(async (req, res) => {
-//   // 1. Correct the type casting to a Record/Object
-//   const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+const updateMyProfile = catchAsync(async (req, res) => {
+  const { id } = req.user; // This is the userId from the JWT
+  const data = req.body;
 
-//   const { email } = req.user;
+  const result = await joinAsDriverService.updateMyProfileInDB(id, data);
 
-//   // 2. Pass the files object as is to the service
-//   const result = await joinAsDriverService.joinAsDriver(email, req.body, files);
-
-//   sendResponse(res, {
-//     statusCode: StatusCodes.OK,
-//     success: true,
-//     message: "Driver application submitted",
-//     data: result,
-//   });
-// });
-
-const getMyDriverInfo = catchAsync(async (req, res) => {
-  const { email } = req.user;
-  const result = await joinAsDriverService.getMyDriverInfo(email);
   sendResponse(res, {
     statusCode: StatusCodes.OK,
     success: true,
+    message: "Profile updated successfully",
+    data: result,
+  });
+});
+
+const getMyDriverInfo = catchAsync(async (req, res) => {
+  // Extract 'id' attached by the auth middleware from the decoded JWT
+  const { id } = req.user; 
+  
+  const result = await joinAsDriverService.getMyDriverInfoFromDB(id);
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: "Driver profile retrieved successfully",
     data: result,
   });
 });
@@ -103,7 +104,6 @@ const registerDriverUnified = catchAsync(async (req, res) => {
 });
 
 export const joinAsDriverController = {
-  // joinAsDriver,
   getMyDriverInfo,
   updateDriverStatus,
   suspendDriver,
@@ -111,5 +111,6 @@ export const joinAsDriverController = {
   getSingleDriver,
   deleteDriver,
   registerDriverUnified,
+  updateMyProfile
 
 };
