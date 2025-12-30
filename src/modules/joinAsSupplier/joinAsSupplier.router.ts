@@ -37,7 +37,7 @@ router.get(
 
 router.put(
   "/update-status/:id",
-  auth(USER_ROLE.ADMIN),
+  // auth(USER_ROLE.ADMIN),
   joinAsSupplierController.updateSupplierStatus
 );
 

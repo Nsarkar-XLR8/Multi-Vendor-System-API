@@ -15,6 +15,7 @@ import { IUser } from "../user/user.interface";
 import { User } from "../user/user.model";
 import { IJoinAsSupplier, IQuery } from "./joinAsSupplier.interface";
 import JoinAsSupplier from "./joinAsSupplier.model";
+import sendTemplateMail from "../../utils/sendTamplateMail";
 
 const joinAsSupplier = async (
   payload: IJoinAsSupplier,
@@ -306,9 +307,56 @@ const updateSupplierStatus = async (id: string, status: string) => {
     throw new AppError("Supplier not found", StatusCodes.NOT_FOUND);
   }
 
-  await JoinAsSupplier.findByIdAndUpdate(id, { status }, { new: true });
+  const result = await JoinAsSupplier.findByIdAndUpdate(
+    id,
+    { status },
+    { new: true }
+  ).populate("userId", "firstName lastName email phone role");
 
-  return supplier;
+  const user = result?.userId as any;
+
+  // JWT payload
+  const JwtToken = {
+    userId: user._id,
+    email: user.email,
+    role: user.role,
+  };
+
+  const accessToken = createToken(
+    JwtToken,
+    config.JWT_SECRET as string,
+    config.JWT_EXPIRES_IN as string
+  );
+
+  const resetPasswordURL = `${process.env.RESET_PASSWORD_URL}?token=${accessToken}`;
+  const dashboardUrl = `${process.env.DASHBOARD_URL}`;
+
+
+  if (status === "approved") {
+    await sendEmail({
+      to: supplier.email,
+      subject: "Your Supplier Account is Approved",
+      html: sendTemplateMail({
+        type: "success",
+        email: supplier.email,
+        subject: "Supplier Account Approved",
+        resetPasswordURL,
+        dashboardUrl,
+        message: `Congratulations! Your supplier account has been approved. You can now start adding products ${supplier.shopName}`,
+      }),
+    });
+  } else if (status === "rejected") {
+    await sendEmail({
+      to: supplier.email,
+      subject: "Your Supplier Account is Rejected",
+      html: sendTemplateMail({
+        type: "rejected",
+        email: supplier.email,
+        subject: "Supplier Account Rejected",
+        message: `Your supplier account has been rejected. Please try again later.`,
+      }),
+    });
+  }
 };
 
 //! Check this one later-------------------------

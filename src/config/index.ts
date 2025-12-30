@@ -33,4 +33,5 @@ export default {
     AES_KEY: process.env.AES_KEY,
     AES_IV: process.env.AES_IV,
   },
+  frontend_reset_password_url: process.env.RESET_PASSWORD_URL,
 };
