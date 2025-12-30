@@ -1,12 +1,48 @@
 import { StatusCodes } from "http-status-codes";
+import countries from "world-countries";
 import AppError from "../../errors/AppError";
 import generateShopSlug from "../../middleware/generateShopSlug";
 import { ICategory } from "./category.interface";
 import category from "./category.model";
+import { regionMap } from "../../lib/globalType";
+
+// const createCategory = async (payload: ICategory) => {
+//   const isExistRegion = await category.findOne({
+//     name: { $regex: `^${payload.region}$`, $options: "i" },
+//   });
+
+//   if (isExistRegion) {
+//     throw new AppError(
+//       `${payload.region} category already exists`,
+//       StatusCodes.CONFLICT
+//     );
+//   }
+
+//   const isExistProductType = await category.findOne({
+//     name: { $regex: `^${payload.productType}$`, $options: "i" },
+//   });
+
+//   if (isExistProductType) {
+//     throw new AppError(
+//       `${payload.productType} category already exists ${payload.region}`,
+//       StatusCodes.CONFLICT
+//     );
+//   }
+
+//   const slug = generateShopSlug(payload.region || payload.productType || "");
+
+//   const result = await category.create({
+//     ...payload,
+//     slug,
+//   });
+
+//   return result;
+// };
 
 const createCategory = async (payload: ICategory) => {
+  // Check if region already exists
   const isExistRegion = await category.findOne({
-    name: { $regex: `^${payload.region}$`, $options: "i" },
+    region: { $regex: `^${payload.region}$`, $options: "i" },
   });
 
   if (isExistRegion) {
@@ -16,22 +52,41 @@ const createCategory = async (payload: ICategory) => {
     );
   }
 
+  // Check if productType already exists
   const isExistProductType = await category.findOne({
-    name: { $regex: `^${payload.productType}$`, $options: "i" },
+    productType: { $regex: `^${payload.productType}$`, $options: "i" },
   });
 
   if (isExistProductType) {
     throw new AppError(
-      `${payload.productType} category already exists ${payload.region}`,
+      `${payload.productType} category already exists in ${payload.region}`,
       StatusCodes.CONFLICT
     );
   }
 
+  // Generate slug
   const slug = generateShopSlug(payload.region || payload.productType || "");
 
+  // 1️⃣ Normalize input
+  const regionInput = payload.region?.toLowerCase().trim() || "";
+
+  // 2️⃣ Map to correct region/subregion name
+  const mappedRegion = regionMap[regionInput] || payload.region;
+
+  // 3️⃣ Find countries dynamically
+  const countryList = countries
+    .filter(
+      (c) =>
+        c.subregion === mappedRegion || // check subregion first
+        c.region === mappedRegion // then check region
+    )
+    .map((c) => c.name.common);
+
+  // 4️⃣ Create category
   const result = await category.create({
     ...payload,
     slug,
+    country: countryList,
   });
 
   return result;

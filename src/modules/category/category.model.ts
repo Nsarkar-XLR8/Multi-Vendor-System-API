@@ -7,6 +7,7 @@ const CategorySchema = new Schema<ICategory>(
     slug: { type: String, unique: true },
     productType: { type: String, required: false },
     productName: { type: [String], required: false },
+    country: { type: [String], required: false },
   },
   { timestamps: true, versionKey: false }
 );

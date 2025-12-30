@@ -22,10 +22,11 @@ export interface ISEO {
 }
 
 export interface IProduct {
-  supplierId: Types.ObjectId;
+  userId: Types.ObjectId;
   categoryId?: Types.ObjectId;
   title: string;
   slug: string;
+  shortDescription: string;
   description: string;
   images: IProductImage[];
   productType: string;

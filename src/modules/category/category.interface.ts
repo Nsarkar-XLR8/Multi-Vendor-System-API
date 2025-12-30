@@ -3,4 +3,5 @@ export interface ICategory {
   slug?: string;
   productType?: string;
   productName?: string[];
+  country?: string[];
 }
