@@ -123,34 +123,56 @@ const updateDriverStatus = async (id: string, status: "approved" | "rejected") =
 };
 
 
-const suspendDriver = async (id: string, suspensionDays?: number) => {
+const suspendDriver = async (id: string) => {
   const driver = await JoinAsDriver.findById(id);
-  if (!driver) throw new AppError("Driver not found", StatusCodes.NOT_FOUND);
-
-  const isCurrentlySuspended = driver.isSuspended;
-  let suspendedUntil = null;
-
-  if (!isCurrentlySuspended && suspensionDays) {
-    suspendedUntil = new Date();
-    suspendedUntil.setDate(suspendedUntil.getDate() + suspensionDays);
+  if (!driver) {
+    throw new AppError("Driver not found", StatusCodes.NOT_FOUND);
   }
 
-  const result = await JoinAsDriver.findByIdAndUpdate(
-    id,
-    { isSuspended: !isCurrentlySuspended, suspendedUntil },
-    { new: true }
-  );
+  if (driver.isSuspended) {
+    throw new AppError("Driver is already suspended", StatusCodes.BAD_REQUEST);
+  }
 
-  // Inform the User
+  driver.isSuspended = true;
+  await driver.save();
+
   await sendEmail({
     to: driver.email,
-    subject: isCurrentlySuspended ? "Account Reinstated" : "Account Suspended",
-    html: isCurrentlySuspended 
-      ? "<h3>Welcome Back!</h3><p>Your driver account has been reactivated.</p>" 
-      : `<h3>Account Suspended</h3><p>Your account is temporarily suspended until ${suspendedUntil?.toDateString()}.</p>`
+    subject: "Account Suspended",
+    html: `
+      <h3>Account Suspended</h3>
+      <p>Your driver account has been suspended by the admin.</p>
+      <p>If you believe this is a mistake, please contact support.</p>
+    `,
   });
 
-  return result;
+  return { success: true };
+};
+
+const unsuspendDriver = async (id: string) => {
+  const driver = await JoinAsDriver.findById(id);
+  if (!driver) {
+    throw new AppError("Driver not found", StatusCodes.NOT_FOUND);
+  }
+
+  if (!driver.isSuspended) {
+    throw new AppError("Driver is not suspended", StatusCodes.BAD_REQUEST);
+  }
+
+  driver.isSuspended = false;
+  await driver.save();
+
+  await sendEmail({
+    to: driver.email,
+    subject: "Account Reactivated",
+    html: `
+      <h3>Account Reactivated</h3>
+      <p>Your driver account has been reactivated.</p>
+      <p>You can now start accepting orders again.</p>
+    `,
+  });
+
+  return { success: true };
 };
 
 const getSingleDriver = async (id: string) => {
@@ -303,6 +325,7 @@ export const joinAsDriverService = {
   getAllDrivers,
   updateDriverStatus,
   suspendDriver,
+  unsuspendDriver,
   getSingleDriver,
   deleteDriver,
   registerDriverUnified,

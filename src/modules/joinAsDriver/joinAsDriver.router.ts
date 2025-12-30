@@ -38,6 +38,13 @@ router.put(
   joinAsDriverController.suspendDriver
 );
 
+// Access: {{baseUrl}}/admin/driver/unsuspend/:id
+router.put(
+  "/unsuspend/:id",
+  auth(USER_ROLE.ADMIN),
+  joinAsDriverController.unsuspendDriver
+);
+
 // Access: {{baseUrl}}/admin/driver/single/:id
 router.get(
   "/single/:id",

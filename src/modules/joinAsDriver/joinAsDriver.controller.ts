@@ -47,14 +47,23 @@ const updateDriverStatus = catchAsync(async (req, res) => {
 
 const suspendDriver = catchAsync(async (req, res) => {
   const { id } = req.params;
-  const { days } = req.body; // Optional days for temporary suspension
-  await joinAsDriverService.suspendDriver(id, days);
+  await joinAsDriverService.suspendDriver(id);
   sendResponse(res, {
     statusCode: StatusCodes.OK,
     success: true,
     message: "Suspension toggled",
   });
 });
+
+const unsuspendDriver = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  await joinAsDriverService.unsuspendDriver(id);
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: "Unsuspension toggled",
+  });
+})
 
 const getAllDrivers = catchAsync(async (req, res) => {
   const result = await joinAsDriverService.getAllDrivers(req.query);
@@ -107,6 +116,7 @@ export const joinAsDriverController = {
   getMyDriverInfo,
   updateDriverStatus,
   suspendDriver,
+  unsuspendDriver,
   getAllDrivers,
   getSingleDriver,
   deleteDriver,
