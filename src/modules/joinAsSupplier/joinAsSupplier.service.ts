@@ -412,7 +412,6 @@ const deleteSupplier = async (id: string) => {
   await JoinAsSupplier.findByIdAndDelete(id);
 };
 
-//!-----------------------------------------------------------------------
 
 const updateSupplierInfo = async (
   id: string,

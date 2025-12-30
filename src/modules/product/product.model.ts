@@ -38,10 +38,9 @@ const SEOSchema = new Schema<ISEO>(
 
 const ProductSchema = new Schema<IProduct>(
   {
-    supplierId: {
+    userId: {
       type: Schema.Types.ObjectId,
-      ref: "Supplier",
-      required: true,
+      ref: "User",
       index: true,
     },
     categoryId: {
@@ -51,6 +50,7 @@ const ProductSchema = new Schema<IProduct>(
     },
     title: { type: String, required: true, trim: true },
     slug: { type: String, required: true, unique: true },
+    shortDescription: { type: String, required: true },
     description: { type: String, required: true },
     images: {
       type: [ProductImageSchema],
