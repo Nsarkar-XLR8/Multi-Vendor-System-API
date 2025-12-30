@@ -19,7 +19,7 @@ router.post(
 
 router.get(
   "/my-supplier-info",
-  auth(USER_ROLE.CUSTOMER),
+  auth(USER_ROLE.SUPPLIER),
   joinAsSupplierController.getMySupplierInfo
 );
 
@@ -45,6 +45,17 @@ router.put(
   "/suspend/:id",
   auth(USER_ROLE.ADMIN),
   joinAsSupplierController.suspendSupplier
+);
+
+
+router.put(
+  "/update-supplier/:id",
+  auth(USER_ROLE.SUPPLIER),
+  upload.fields([
+    { name: "documents", maxCount: 5 },
+    { name: "logo", maxCount: 1 },
+  ]),
+  joinAsSupplierController.updateSupplierInfo
 );
 
 router.delete(

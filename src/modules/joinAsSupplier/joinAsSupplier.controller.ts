@@ -30,7 +30,6 @@ const joinAsSupplier = catchAsync(async (req, res) => {
   });
 });
 
-
 const getMySupplierInfo = catchAsync(async (req, res) => {
   const { email } = req.user;
   const result = await joinAsSupplierService.getMySupplierInfo(email);
@@ -102,6 +101,30 @@ const deleteSupplier = catchAsync(async (req, res) => {
   });
 });
 
+const updateSupplierInfo = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const files = req.files as {
+    documents?: Express.Multer.File[];
+    logo?: Express.Multer.File[];
+  };
+
+  const documents = files?.documents || [];
+  const logoFile = files?.logo?.[0]; // single logo
+
+  await joinAsSupplierService.updateSupplierInfo(
+    id,
+    req.body,
+    documents,
+    logoFile as Express.Multer.File
+  );
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: "Supplier information updated successfully",
+  });
+});
+
 const joinAsSupplierController = {
   joinAsSupplier,
   getMySupplierInfo,
@@ -110,6 +133,7 @@ const joinAsSupplierController = {
   getSingleSupplier,
   suspendSupplier,
   deleteSupplier,
+  updateSupplierInfo,
 };
 
 export default joinAsSupplierController;

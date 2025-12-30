@@ -4,7 +4,10 @@ import mongoose from "mongoose";
 import config from "../../config";
 import AppError from "../../errors/AppError";
 import generateShopSlug from "../../middleware/generateShopSlug";
-import { uploadToCloudinary } from "../../utils/cloudinary";
+import {
+  deleteFromCloudinary,
+  uploadToCloudinary,
+} from "../../utils/cloudinary";
 import sendEmail from "../../utils/sendEmail";
 import { createToken } from "../../utils/tokenGenerate";
 import verificationCodeTemplate from "../../utils/verificationCodeTemplate";
@@ -12,7 +15,6 @@ import { IUser } from "../user/user.interface";
 import { User } from "../user/user.model";
 import { IJoinAsSupplier, IQuery } from "./joinAsSupplier.interface";
 import JoinAsSupplier from "./joinAsSupplier.model";
-
 
 const joinAsSupplier = async (
   payload: IJoinAsSupplier,
@@ -92,8 +94,7 @@ const joinAsSupplier = async (
 
       user = dbUser;
     } else {
-
-    /** ===============================
+      /** ===============================
      * CASE 2️⃣ Guest user
      ===============================*/
       const existingUser = await User.findOne({
@@ -118,6 +119,8 @@ const joinAsSupplier = async (
           {
             email: payload.email,
             phone: payload.phone,
+            firstName: payload.firstName,
+            lastName: payload.lastName,
             password,
             role: "supplier",
             isVerified: false,
@@ -187,7 +190,7 @@ const joinAsSupplier = async (
     }
 
     return {
-      user,
+      // user,
       supplierRequest: supplierRequest[0],
       tempPassword,
       accessToken,
@@ -216,7 +219,7 @@ const getMySupplierInfo = async (email: string) => {
 
   const supplierInfo = await JoinAsSupplier.findOne({
     userId: user._id,
-  }).populate("userId", "firstName lastName email phoneNumber");
+  }).populate("userId", "firstName lastName email phone");
 
   return supplierInfo;
 };
@@ -298,41 +301,14 @@ const getSingleSupplier = async (id: string) => {
 };
 
 const updateSupplierStatus = async (id: string, status: string) => {
-  // const supplier = await JoinAsSupplier.findById(id);
-  // if (!supplier) {
-  //   throw new AppError("Supplier not found", StatusCodes.NOT_FOUND);
-  // }
-  // const validStatuses = ["pending", "approved", "rejected"];
-  // if (!validStatuses.includes(status)) {
-  //   throw new AppError("Invalid status value", StatusCodes.BAD_REQUEST);
-  // }
-  // await JoinAsSupplier.findByIdAndUpdate(id, { status }, { new: true });
-  // // ✅ Email content
-  // if (status === "approved") {
-  //   await User.findByIdAndUpdate(supplier.userId, { role: "supplier" });
-  //   await sendEmail({
-  //     to: supplier.email,
-  //     subject: "Your Supplier Account is Approved",
-  //     html: sendTemplateMail({
-  //       type: "success",
-  //       email: supplier.email,
-  //       subject: "Supplier Account Approved",
-  //       message: `Congratulations! Your supplier account has been approved. You can now start adding products "${supplier.shopName}".`,
-  //     }),
-  //   });
-  // } else if (status === "rejected") {
-  //   await sendEmail({
-  //     to: supplier.email,
-  //     subject: "Your Supplier Application is Rejected",
-  //     html: sendTemplateMail({
-  //       type: "rejected",
-  //       email: supplier.email,
-  //       subject: "Supplier Application Rejected",
-  //       message: `We are sorry! Your supplier application has been rejected. Please review your information and try again later.`,
-  //     }),
-  //   });
-  // }
-  // return result;
+  const supplier = await JoinAsSupplier.findById(id);
+  if (!supplier) {
+    throw new AppError("Supplier not found", StatusCodes.NOT_FOUND);
+  }
+
+  await JoinAsSupplier.findByIdAndUpdate(id, { status }, { new: true });
+
+  return supplier;
 };
 
 //! Check this one later-------------------------
@@ -388,6 +364,132 @@ const deleteSupplier = async (id: string) => {
   await JoinAsSupplier.findByIdAndDelete(id);
 };
 
+//!-----------------------------------------------------------------------
+
+const updateSupplierInfo = async (
+  id: string,
+  data: any,
+  documents: Express.Multer.File[],
+  logoFile?: Express.Multer.File
+) => {
+  const supplier = await JoinAsSupplier.findById(id);
+
+  if (!supplier) {
+    throw new AppError("Supplier not found", StatusCodes.NOT_FOUND);
+  }
+
+  if (supplier.status !== "pending") {
+    throw new AppError(
+      "Only pending suppliers can be updated.",
+      StatusCodes.BAD_REQUEST
+    );
+  }
+
+  if (supplier.isSuspended) {
+    throw new AppError(
+      "Admin suspended your account. Please contact admin.",
+      StatusCodes.BAD_REQUEST
+    );
+  }
+
+  /** ===============================
+   * Upload documents
+   ===============================*/
+  let uploadedDocuments = supplier.documentUrl || [];
+
+  if (documents?.length > 0) {
+    const newDocs = [];
+
+    for (const file of documents) {
+      const uploaded = await uploadToCloudinary(
+        file.path,
+        "supplier-documents"
+      );
+
+      newDocs.push({
+        url: uploaded.secure_url,
+        public_id: uploaded.public_id,
+      });
+    }
+
+    uploadedDocuments = newDocs; // replace old documents
+  }
+
+  /** ===============================
+   * Upload logo
+   ===============================*/
+  let logo = supplier.logo;
+
+  if (logoFile) {
+    if (logo?.public_id) {
+      await deleteFromCloudinary(logo.public_id);
+    }
+
+    const uploadedLogo = await uploadToCloudinary(
+      logoFile.path,
+      "supplier-logos"
+    );
+
+    logo = {
+      url: uploadedLogo.secure_url,
+      public_id: uploadedLogo.public_id,
+    };
+  }
+
+  /** ===============================
+   * Update USER fields separately
+   ===============================*/
+  const allowedUserFields = ["firstName", "lastName", "phone"];
+  const userData: any = {};
+
+  for (const key of allowedUserFields) {
+    if (data[key] !== undefined) {
+      userData[key] = data[key];
+    }
+  }
+
+  if (Object.keys(userData).length > 0) {
+    await User.findByIdAndUpdate(supplier.userId, userData, {
+      new: true,
+      runValidators: true,
+    });
+  }
+
+  /** ===============================
+   * Update SUPPLIER fields only
+   ===============================*/
+  const allowedSupplierFields = [
+    "shopName",
+    "brandName",
+    "description",
+    "warehouseLocation",
+    "address",
+    "location",
+    "street",
+    "postalCode",
+  ];
+
+  const supplierData: any = {};
+
+  for (const key of allowedSupplierFields) {
+    if (data[key] !== undefined) {
+      supplierData[key] = data[key];
+    }
+  }
+
+  const updatedSupplier = await JoinAsSupplier.findByIdAndUpdate(
+    id,
+    {
+      ...supplierData,
+      documentUrl: uploadedDocuments,
+      logo,
+    },
+    { new: true, runValidators: true }
+  ).populate("userId", "firstName lastName phone email");
+
+  return updatedSupplier;
+};
+
 const joinAsSupplierService = {
   joinAsSupplier,
   getMySupplierInfo,
@@ -396,5 +498,6 @@ const joinAsSupplierService = {
   updateSupplierStatus,
   suspendSupplier,
   deleteSupplier,
+  updateSupplierInfo,
 };
 export default joinAsSupplierService;
