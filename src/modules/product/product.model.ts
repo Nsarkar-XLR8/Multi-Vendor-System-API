@@ -1,27 +1,12 @@
 import { model, Schema } from "mongoose";
-import {
-  IProduct,
-  IProductImage,
-  IProductVariant,
-  ISEO,
-} from "./product.interface";
-
-const ProductImageSchema = new Schema<IProductImage>(
-  {
-    public_id: { type: String, required: true },
-    url: { type: String, required: true },
-  },
-  { _id: false }
-);
+import { IProduct, IProductVariant, ISEO } from "./product.interface";
 
 const ProductVariantSchema = new Schema<IProductVariant>(
   {
     label: { type: String, required: true },
     price: { type: Number, required: true },
     stock: { type: Number, required: true },
-    sku: { type: String },
     unit: { type: String, required: true },
-    // minOrderQty: { type: Number, default: 1 },
   }
   //   { _id: false }
 );
@@ -52,11 +37,12 @@ const ProductSchema = new Schema<IProduct>(
     slug: { type: String, required: true, unique: true },
     shortDescription: { type: String, required: true },
     description: { type: String, required: true },
-    images: {
-      type: [ProductImageSchema],
-      required: true,
-    },
-
+    images: [
+      {
+        public_id: { type: String },
+        url: { type: String },
+      },
+    ],
     productType: { type: String, required: true },
     productName: { type: String, required: true },
     variants: {
@@ -83,7 +69,11 @@ const ProductSchema = new Schema<IProduct>(
       default: "pending",
     },
     isFeatured: { type: Boolean, default: false },
-    isNewArrival: { type: Boolean, default: true },
+    // isNewArrival: { type: Boolean, default: true },
+    addBy: {
+      type: String,
+      enum: ["admin", "supplier"],
+    },
   },
   {
     timestamps: true,

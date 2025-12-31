@@ -1,17 +1,10 @@
 import { Types } from "mongoose";
 
-export interface IProductImage {
-  public_id: string;
-  url: string;
-}
-
 export interface IProductVariant {
   label: string;
   price: number;
   stock: number;
-  sku?: string;
   unit: string;
-  // minOrderQty?: number;
 }
 
 export interface ISEO {
@@ -26,9 +19,13 @@ export interface IProduct {
   categoryId?: Types.ObjectId;
   title: string;
   slug: string;
+  type: "single" | "case";
   shortDescription: string;
   description: string;
-  images: IProductImage[];
+  images: {
+    public_id: string;
+    url: string;
+  };
   productType: string;
   productName?: string;
   variants: IProductVariant[];
@@ -45,7 +42,8 @@ export interface IProduct {
   totalReviews: number;
   status: "pending" | "approved" | "rejected";
   isFeatured: boolean;
-  isNewArrival: boolean;
+  // isNewArrival: boolean;
+  addBy: "admin" | "supplier"; //
   createdAt: Date;
   updatedAt: Date;
 }
