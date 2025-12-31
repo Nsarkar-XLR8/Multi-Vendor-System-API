@@ -17,6 +17,7 @@ export interface ISEO {
 export interface IProduct {
   userId: Types.ObjectId;
   categoryId?: Types.ObjectId;
+  supplierId?: Types.ObjectId;
   title: string;
   slug: string;
   type: "single" | "case";

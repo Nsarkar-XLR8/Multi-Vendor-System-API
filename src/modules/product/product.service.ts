@@ -12,8 +12,10 @@ const createProduct = async (payload: IProduct, files: any, email: string) => {
   if (!user)
     throw new AppError("Your account does not exist", StatusCodes.NOT_FOUND);
 
+  let isSupplierExist = null;
+
   if (user.role === "supplier") {
-    const isSupplierExist = await JoinAsSupplier.findOne({ userId: user._id });
+    isSupplierExist = await JoinAsSupplier.findOne({ userId: user._id });
     if (!isSupplierExist) {
       throw new AppError(
         "You have not applied to be a supplier",
@@ -65,6 +67,7 @@ const createProduct = async (payload: IProduct, files: any, email: string) => {
     ...payload,
     images: uploadedImages,
     userId: user._id,
+    supplierId: user.role === "supplier" ? isSupplierExist!._id : null,
     slug,
     seo: seoData,
     priceFrom,
@@ -80,7 +83,37 @@ const getMyAddedProducts = async (email: string) => {
   if (!user)
     throw new AppError("Your account does not exist", StatusCodes.NOT_FOUND);
 
-  const result = await Product.find({ userId: user._id })
+  const result = await Product.find({ userId: user._id }).populate({
+    path: "categoryId",
+    select: "region",
+  });
+  return result;
+};
+
+const getAllProducts = async () => {
+  const result = await Product.find()
+    .populate({
+      path: "userId",
+      select: "firstName lastName email",
+    })
+    .populate({
+      path: "categoryId",
+      select: "region",
+    })
+    .populate({
+      path: "supplierId",
+      select: "shopName brandName logo",
+    });
+  return result;
+};
+
+const getSingleProduct = async (id: string) => {
+  const isProductExist = await Product.findById(id);
+  if (!isProductExist) {
+    throw new AppError("Product not found", StatusCodes.NOT_FOUND);
+  }
+
+  const result = await Product.findById(id)
     .populate({
       path: "userId",
       select: "firstName lastName email",
@@ -95,6 +128,8 @@ const getMyAddedProducts = async (email: string) => {
 const productService = {
   createProduct,
   getMyAddedProducts,
+  getSingleProduct,
+  getAllProducts,
 };
 
 export default productService;
