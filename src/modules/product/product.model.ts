@@ -33,6 +33,11 @@ const ProductSchema = new Schema<IProduct>(
       ref: "Category",
       index: true,
     },
+    supplierId: {
+      type: Schema.Types.ObjectId,
+      ref: "JoinAsSupplier",
+      index: true,
+    },
     title: { type: String, required: true, trim: true },
     slug: { type: String, required: true, unique: true },
     shortDescription: { type: String, required: true },

@@ -19,5 +19,13 @@ router.get(
   productController.getMyAddedProducts
 );
 
+router.get("/all", productController.getAllProducts);
+
+router.get(
+  "/:id",
+  auth(USER_ROLE.ADMIN, USER_ROLE.SUPPLIER),
+  productController.getSingleProduct
+);
+
 const productRouter = router;
 export default productRouter;
