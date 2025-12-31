@@ -52,11 +52,24 @@ const getSingleProduct = catchAsync(async (req, res) => {
   });
 });
 
+const updateProductStatus = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+  await productService.updateProductStatus(id, status);
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: "Product status updated successfully",
+  });
+});
+
 const productController = {
   createProduct,
   getMyAddedProducts,
   getAllProducts,
   getSingleProduct,
+  updateProductStatus,
 };
 
 export default productController;

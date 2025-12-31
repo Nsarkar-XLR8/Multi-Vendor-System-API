@@ -27,5 +27,11 @@ router.get(
   productController.getSingleProduct
 );
 
+router.put(
+  "/update-status/:id",
+//   auth(USER_ROLE.ADMIN, USER_ROLE.SUPPLIER),
+  productController.updateProductStatus
+);
+
 const productRouter = router;
 export default productRouter;

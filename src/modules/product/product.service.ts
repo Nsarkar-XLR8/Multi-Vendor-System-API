@@ -92,10 +92,10 @@ const getMyAddedProducts = async (email: string) => {
 
 const getAllProducts = async () => {
   const result = await Product.find()
-    .populate({
-      path: "userId",
-      select: "firstName lastName email",
-    })
+    // .populate({
+    //   path: "userId",
+    //   select: "firstName lastName email",
+    // })
     .populate({
       path: "categoryId",
       select: "region",
@@ -121,8 +121,25 @@ const getSingleProduct = async (id: string) => {
     .populate({
       path: "categoryId",
       select: "region",
+    })
+    .populate({
+      path: "supplierId",
+      select: "shopName brandName logo",
     });
   return result;
+};
+
+const updateProductStatus = async (id: string, status: string) => {
+  const isProductExist = await Product.findById(id);
+  if (!isProductExist) {
+    throw new AppError("Product not found", StatusCodes.NOT_FOUND);
+  }
+
+  await Product.findOneAndUpdate(
+    { _id: isProductExist._id },
+    { status },
+    { new: true }
+  );
 };
 
 const productService = {
@@ -130,6 +147,7 @@ const productService = {
   getMyAddedProducts,
   getSingleProduct,
   getAllProducts,
+  updateProductStatus,
 };
 
 export default productService;
