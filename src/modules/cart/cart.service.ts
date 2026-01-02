@@ -6,8 +6,8 @@ import Cart from "./cart.model";
 
 interface AddToCartPayload {
   productId: string;
-  variantId?: string; 
-  wholesaleId?: string; 
+  variantId?: string;
+  wholesaleId?: string;
   quantity: number;
 }
 
@@ -71,22 +71,21 @@ const addToCart = async (email: string, payload: AddToCartPayload) => {
     }
 
     // PALLET type
+    // PALLET type
     else if (wholesale.type === "pallet") {
       const pallet = wholesale.palletItems.find((p: any) =>
-        p.items.find(
+        p.items.some(
           (i: any) => i.productId.toString() === product._id.toString()
         )
       );
+
       if (!pallet)
         throw new AppError("Pallet item not found", StatusCodes.NOT_FOUND);
 
-      const item = pallet.items.find(
-        (i: any) => i.productId.toString() === product._id.toString()
-      );
-
-      unitPrice = pallet.price / pallet.totalCases; // price per case
-      originalPrice = unitPrice;
-      discount = 0; // pallet discount not applied individually
+      // ✅ FIXED LOGIC
+      unitPrice = pallet.price; // 🔥 FULL PALLET PRICE
+      originalPrice = pallet.price;
+      discount = 0;
       unit = "pallet";
       wholesaleLabel = wholesale.label;
     }
@@ -133,8 +132,6 @@ const addToCart = async (email: string, payload: AddToCartPayload) => {
 
   return cartItem;
 };
-
-
 
 const getMyCart = async (email: string) => {};
 
