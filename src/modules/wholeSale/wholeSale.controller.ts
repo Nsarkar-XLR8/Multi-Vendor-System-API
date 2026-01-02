@@ -31,10 +31,22 @@ const getAllWholeSale = catchAsync(async (req, res) => {
   });
 });
 
+const updateWholeSale = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const result = await wholeSaleService.updateWholeSale(id, req.body);
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: `Wholesale updated successfully`,
+    data: result,
+  });
+});
 
 const wholeSaleController = {
   addInWholeSale,
   getAllWholeSale,
+  updateWholeSale,
 };
 
 export default wholeSaleController;
