@@ -4,6 +4,7 @@ import wholeSaleController from "./wholeSale.controller";
 const router = Router();
 
 router.post("/add", wholeSaleController.addInWholeSale);
+router.get("/all", wholeSaleController.getAllWholeSale);
 
 const wholeSaleRouter = router;
 export default wholeSaleRouter;

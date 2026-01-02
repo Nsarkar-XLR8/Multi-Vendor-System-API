@@ -34,6 +34,7 @@ export interface IWholesalePallet {
   totalCases: number;
   price: number;
   estimatedWeight?: number;
+  discount?: number;
   isMixed: boolean;
   isActive?: boolean;
 }
