@@ -8,6 +8,7 @@ import productRouter from "../modules/product/product.router";
 import subscriptionRouter from "../modules/subscription/subscription.router";
 import userRouter from "../modules/user/user.router";
 import wholeSaleRouter from "../modules/wholeSale/wholeSale.router";
+import wishlistRouter from "../modules/wishlist/wishlist.router";
 
 const router = Router();
 
@@ -51,6 +52,10 @@ const moduleRoutes = [
   {
     path: "/whole-sale",
     route: wholeSaleRouter,
+  },
+  {
+    path: "/wishlist",
+    route: wishlistRouter,
   },
 ];
 
