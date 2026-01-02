@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-this-alias */
 import { model, Schema } from "mongoose";
 import { IProduct, IProductVariant, ISEO } from "./product.interface";
 
@@ -7,6 +8,8 @@ const ProductVariantSchema = new Schema<IProductVariant>(
     price: { type: Number, required: true },
     stock: { type: Number, required: true },
     unit: { type: String, required: true },
+    discount: { type: Number, default: 0 },
+    discountPrice: { type: Number, default: 0 },
   }
   //   { _id: false }
 );
@@ -55,6 +58,7 @@ const ProductSchema = new Schema<IProduct>(
       required: true,
     },
     priceFrom: { type: Number },
+    discountPriceFrom: { type: Number },
     shelfLife: { type: String },
     originCountry: { type: String },
     isHalal: { type: Boolean, default: false },
@@ -74,7 +78,8 @@ const ProductSchema = new Schema<IProduct>(
       default: "pending",
     },
     isFeatured: { type: Boolean, default: false },
-    // isNewArrival: { type: Boolean, default: true },
+    quantity: { type: Number, default: 0 },
+    isAvailable: { type: Boolean, default: true },
     wholesaleId: [
       {
         type: Schema.Types.ObjectId,
@@ -93,6 +98,26 @@ const ProductSchema = new Schema<IProduct>(
     versionKey: false,
   }
 );
+
+ProductSchema.pre("save", function (next) {
+  const product = this;
+
+  if (product.variants && product.variants.length > 0) {
+    product.variants = product.variants.map((variant: any) => {
+      // discountPrice auto calculate
+      if (variant.discount && variant.discount > 0) {
+        variant.discountPrice =
+          variant.price - (variant.price * variant.discount) / 100;
+      } else {
+        variant.discountPrice = variant.price;
+      }
+      return variant;
+    });
+  }
+
+  next();
+});
+
 
 const Product = model<IProduct>("Product", ProductSchema);
 

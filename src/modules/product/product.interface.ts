@@ -5,6 +5,8 @@ export interface IProductVariant {
   price: number;
   stock: number;
   unit: string;
+  discount?: number;
+  discountPrice?: number;
 }
 
 export interface ISEO {
@@ -31,6 +33,7 @@ export interface IProduct {
   productName?: string;
   variants: IProductVariant[];
   priceFrom?: number;
+  discountPriceFrom?: number;
   shelfLife?: string;
   originCountry?: string;
   isHalal?: boolean;
@@ -43,7 +46,8 @@ export interface IProduct {
   totalReviews: number;
   status: "pending" | "approved" | "rejected";
   isFeatured: boolean;
-  // isNewArrival: boolean;
+  quantity?: number;
+  isAvailable: boolean;
   addBy: "admin" | "supplier"; //
   wholesaleId?: Types.ObjectId[];
   createdAt: Date;
