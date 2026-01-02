@@ -93,94 +93,192 @@ const getMyAddedProducts = async (email: string) => {
   return result;
 };
 
-const getAllProducts = async () => {
-  const products = await Product.find()
-    .populate({
-      path: "categoryId",
-      select: "region",
-    })
-    .populate({
-      path: "supplierId",
-      select: "shopName brandName logo",
-    })
-    .populate({
-      path: "wholesaleId",
-      match: {
-        type: { $ne: "fastMoving" },
-        isActive: true,
-      },
-    })
-    .lean();
+const getAllProducts = async (query: any) => {
+  const {
+    search,
+    region,
+    productType,
+    minPrice,
+    maxPrice,
+    page = 1,
+    limit = 10,
+  } = query;
 
+  const pageNumber = Math.max(Number(page), 1);
+  const pageLimit = Math.max(Number(limit), 1);
+  const skip = (pageNumber - 1) * pageLimit;
+
+  const pipeline: any[] = [];
+
+  /* =====================================================
+     CATEGORY LOOKUP (clean fields)
+  ===================================================== */
+  pipeline.push({
+    $lookup: {
+      from: "categories",
+      let: { categoryId: "$categoryId" },
+      pipeline: [
+        { $match: { $expr: { $eq: ["$_id", "$$categoryId"] } } },
+        { $project: { _id: 1, region: 1, slug: 1 } }, // only required fields
+      ],
+      as: "categoryId",
+    },
+  });
+
+  pipeline.push({
+    $unwind: { path: "$categoryId", preserveNullAndEmptyArrays: true },
+  });
+
+  /* =====================================================
+     SUPPLIER LOOKUP (only shopName & brandName)
+  ===================================================== */
+  pipeline.push({
+    $lookup: {
+      from: "joinassuppliers", // JoinAsSupplier collection
+      let: { supplierId: "$supplierId" },
+      pipeline: [
+        { $match: { $expr: { $eq: ["$_id", "$$supplierId"] } } },
+        { $project: { _id: 1, shopName: 1, brandName: 1 } }, // ONLY these two
+      ],
+      as: "supplierId",
+    },
+  });
+
+  pipeline.push({
+    $unwind: { path: "$supplierId", preserveNullAndEmptyArrays: true },
+  });
+
+  /* =====================================================
+     WHOLESALE LOOKUP
+  ===================================================== */
+  pipeline.push({
+    $lookup: {
+      from: "wholesales",
+      let: { wholesaleIds: "$wholesaleId" },
+      pipeline: [
+        {
+          $match: {
+            $expr: { $in: ["$_id", "$$wholesaleIds"] },
+            type: { $ne: "fastMoving" },
+            isActive: true,
+          },
+        },
+      ],
+      as: "wholesaleId",
+    },
+  });
+
+  /* =====================================================
+     SEARCH
+  ===================================================== */
+  if (search) {
+    pipeline.push({
+      $match: {
+        $or: [
+          { title: { $regex: search, $options: "i" } },
+          { productName: { $regex: search, $options: "i" } },
+          { productType: { $regex: search, $options: "i" } },
+          { "supplierId.shopName": { $regex: search, $options: "i" } },
+          { "supplierId.brandName": { $regex: search, $options: "i" } },
+        ],
+      },
+    });
+  }
+
+  /* =====================================================
+     FILTERS
+  ===================================================== */
+  if (region) {
+    pipeline.push({ $match: { "categoryId.region": region } });
+  }
+
+  if (productType) {
+    pipeline.push({ $match: { productType } });
+  }
+
+  if (minPrice || maxPrice) {
+    pipeline.push({
+      $match: {
+        priceFrom: {
+          ...(minPrice && { $gte: Number(minPrice) }),
+          ...(maxPrice && { $lte: Number(maxPrice) }),
+        },
+      },
+    });
+  }
+
+  /* =====================================================
+     COUNT FOR PAGINATION
+  ===================================================== */
+  const countPipeline = [...pipeline, { $count: "total" }];
+  const countResult = await Product.aggregate(countPipeline);
+  const total = countResult[0]?.total || 0;
+
+  /* =====================================================
+     PAGINATION
+  ===================================================== */
+  pipeline.push({ $skip: skip }, { $limit: pageLimit });
+
+  /* =====================================================
+     EXECUTE QUERY
+  ===================================================== */
+  const products = await Product.aggregate(pipeline);
+
+  /* =====================================================
+     WHOLESALE VS RETAIL FORMAT
+  ===================================================== */
   const formattedProducts = products.map((product: any) => {
     const productId = product._id.toString();
 
     const wholesales = (product.wholesaleId || [])
       .map((wh: any) => {
-        // ✅ CASE
         if (wh.type === "case") {
-          const caseItems = wh.caseItems.filter(
-            (item: any) => item.productId.toString() === productId
+          const caseItems = wh.caseItems?.filter(
+            (item: any) => item.productId?.toString() === productId
           );
-
-          if (caseItems.length === 0) return null;
-
-          return {
-            ...wh,
-            caseItems,
-          };
+          if (!caseItems || caseItems.length === 0) return null;
+          return { ...wh, caseItems };
         }
 
-        // ✅ PALLET
         if (wh.type === "pallet") {
           const palletItems = wh.palletItems
-            .map((pallet: any) => {
-              const items = pallet.items.filter(
-                (item: any) => item.productId.toString() === productId
+            ?.map((p: any) => {
+              const items = p.items?.filter(
+                (i: any) => i.productId?.toString() === productId
               );
-
-              if (items.length === 0) return null;
-
-              return {
-                ...pallet,
-                items,
-              };
+              if (!items || items.length === 0) return null;
+              return { ...p, items };
             })
             .filter(Boolean);
-
-          if (palletItems.length === 0) return null;
-
-          return {
-            ...wh,
-            palletItems,
-          };
+          if (!palletItems || palletItems.length === 0) return null;
+          return { ...wh, palletItems };
         }
 
         return null;
       })
       .filter(Boolean);
 
-    // 🔥 🔥 IMPORTANT PART 🔥 🔥
-    // যদি wholesale থাকে → retail data remove
     if (wholesales.length > 0) {
-      const { variants, priceFrom, ...restProduct } = product;
-
-      return {
-        ...restProduct,
-        wholesaleId: wholesales,
-      };
+      const { variants, priceFrom, ...rest } = product;
+      return { ...rest, wholesaleId: wholesales };
     }
 
-    // যদি wholesale না থাকে → সব data থাকবে
-    return {
-      ...product,
-      wholesaleId: [],
-    };
+    return { ...product, wholesaleId: [] };
   });
 
-  return formattedProducts;
+  /* =====================================================
+     FINAL RESPONSE
+  ===================================================== */
+  return {
+    meta: {
+      page: pageNumber,
+      limit: pageLimit,
+      total,
+      totalPage: Math.ceil(total / pageLimit),
+    },
+    data: formattedProducts,
+  };
 };
-
 
 const getSingleProduct = async (id: string) => {
   const isProductExist = await Product.findById(id);
