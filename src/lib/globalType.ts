@@ -31,3 +31,11 @@ export const regionMap: Record<string, string> = {
   oceania: "Oceania",
   antarctica: "Antarctica",
 };
+
+
+
+export interface IGetWholesaleParams {
+  type?: string;
+  page?: number;
+  limit?: number;
+}

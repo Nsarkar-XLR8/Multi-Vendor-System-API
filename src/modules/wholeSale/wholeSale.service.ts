@@ -1,12 +1,11 @@
 /* eslint-disable prefer-const */
-import { StatusCodes } from "http-status-codes";
 import mongoose, { Types } from "mongoose";
 import AppError from "../../errors/AppError";
 import checkProductsExist from "../../lib/checkProductExist";
 import Product from "../product/product.model";
 import { IWholesale } from "./wholeSale.interface";
 import Wholesale from "./wholeSale.model";
-
+import { IGetWholesaleParams } from "../../lib/globalType";
 
 const addWholeSale = async (payload: IWholesale) => {
   const session = await mongoose.startSession();
@@ -174,8 +173,44 @@ const addWholeSale = async (payload: IWholesale) => {
 };
 
 
+
+const getAllWholeSale = async ({
+  type,
+  page = 1,
+  limit = 10,
+}: IGetWholesaleParams) => {
+  const filter: any = {};
+
+  // 🔍 Type filter
+  if (type) {
+    filter.type = type;
+  }
+
+  const skip = (page - 1) * limit;
+
+  const [data, total] = await Promise.all([
+    Wholesale.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit),
+    Wholesale.countDocuments(filter),
+  ]);
+
+  return {
+    data,
+    meta: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
+};
+
+
 const wholeSaleService = {
   addWholeSale,
+  getAllWholeSale,
 };
 
 export default wholeSaleService;
