@@ -1,6 +1,6 @@
-
+import { Types } from "mongoose";
 
 export interface IWishlist {
-    userId: string;
-    productId: string;
+  userId: Types.ObjectId;
+  productId: Types.ObjectId;
 }
