@@ -2,10 +2,10 @@
 import mongoose, { Types } from "mongoose";
 import AppError from "../../errors/AppError";
 import checkProductsExist from "../../lib/checkProductExist";
+import { IGetWholesaleParams } from "../../lib/globalType";
 import Product from "../product/product.model";
 import { IWholesale } from "./wholeSale.interface";
 import Wholesale from "./wholeSale.model";
-import { IGetWholesaleParams } from "../../lib/globalType";
 
 const addWholeSale = async (payload: IWholesale) => {
   const session = await mongoose.startSession();
@@ -172,8 +172,6 @@ const addWholeSale = async (payload: IWholesale) => {
   }
 };
 
-
-
 const getAllWholeSale = async ({
   type,
   page = 1,
@@ -189,10 +187,7 @@ const getAllWholeSale = async ({
   const skip = (page - 1) * limit;
 
   const [data, total] = await Promise.all([
-    Wholesale.find(filter)
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit),
+    Wholesale.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit),
     Wholesale.countDocuments(filter),
   ]);
 
@@ -207,10 +202,14 @@ const getAllWholeSale = async ({
   };
 };
 
+const updateWholeSale = async (id: string, payload: IWholesale) => {
+  throw new Error("without thinking ui i cannot do it properly. I know how i do it.");
+};
 
 const wholeSaleService = {
   addWholeSale,
   getAllWholeSale,
+  updateWholeSale,
 };
 
 export default wholeSaleService;
