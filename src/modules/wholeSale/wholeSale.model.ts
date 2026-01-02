@@ -78,6 +78,11 @@ const wholesalePalletSchema = new Schema<IWholesalePallet>(
       type: Number,
       min: 0,
     },
+    discount: {
+      type: Number,
+      min: 0,
+      max: 100,
+    },
     isMixed: {
       type: Boolean,
       required: true,

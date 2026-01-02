@@ -45,6 +45,7 @@ export interface IProduct {
   isFeatured: boolean;
   // isNewArrival: boolean;
   addBy: "admin" | "supplier"; //
+  wholesaleId?: Types.ObjectId[];
   createdAt: Date;
   updatedAt: Date;
 }

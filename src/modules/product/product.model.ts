@@ -75,6 +75,14 @@ const ProductSchema = new Schema<IProduct>(
     },
     isFeatured: { type: Boolean, default: false },
     // isNewArrival: { type: Boolean, default: true },
+    wholesaleId: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "Wholesale",
+        index: true,
+        default: [],
+      },
+    ],
     addBy: {
       type: String,
       enum: ["admin", "supplier"],
