@@ -22,7 +22,7 @@ const orderItemSchema = new Schema(
     },
     wholesaleId: {
       type: Schema.Types.ObjectId,
-      ref: "Product",
+      ref: "Wholesale",
     },
     unitPrice: {
       type: Number,
@@ -39,31 +39,26 @@ const orderSchema = new Schema<IOrder>(
       type: Schema.Types.ObjectId,
       ref: "User",
     },
-
     orderType: {
       type: String,
       enum: ["single", "addToCart"],
       required: true,
     },
-
     paymentType: {
       type: String,
       enum: ["online", "cod"],
       required: true,
     },
-
     paymentStatus: {
       type: String,
       enum: ["unpaid", "paid", "failed"],
       default: "unpaid",
     },
-
     orderStatus: {
       type: String,
       enum: ["pending", "delivered", "cancelled"],
       default: "pending",
     },
-
     items: {
       type: [orderItemSchema],
       required: true,

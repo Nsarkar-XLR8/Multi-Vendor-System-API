@@ -133,7 +133,6 @@ const addToCart = async (email: string, payload: AddToCartPayload) => {
   return cartItem;
 };
 
-//! ------------------------------------------------------------------------
 
 const getMyCart = async (email: string, page = 1, limit = 10) => {
   const user = await User.findOne({ email });
