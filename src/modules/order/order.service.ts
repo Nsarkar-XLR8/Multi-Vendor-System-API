@@ -2,6 +2,7 @@ import { StatusCodes } from "http-status-codes";
 import AppError from "../../errors/AppError";
 import { OrderItemInput } from "../../lib/globalType";
 import Cart from "../cart/cart.model";
+import JoinAsSupplier from "../joinAsSupplier/joinAsSupplier.model";
 import { User } from "../user/user.model";
 import { IOrder } from "./order.interface";
 import Order from "./order.model";
@@ -83,6 +84,10 @@ const getMyOrders = async (email: string) => {
       path: "items.wholesaleId",
       select: "type label caseItems palletItems fastMovingItems",
     })
+    .populate({
+      path: "items.supplierId", // ✅ FIXED
+      select: "shopName brandName logo email",
+    })
     .sort({ createdAt: -1 })
     .lean();
 
@@ -110,6 +115,15 @@ const getMyOrders = async (email: string) => {
           }
         : null;
 
+      // 🟢 SUPPLIER (NOW POPULATED ✅)
+      const supplier = item.supplierId
+        ? {
+            _id: item.supplierId._id,
+            shopName: item.supplierId.shopName,
+            brandName: item.supplierId.brandName,
+            logo: item.supplierId.logo,
+          }
+        : null;
       // ======================
       // 🟢 VARIANT (ONLY IF EXISTS)
       // ======================
@@ -165,6 +179,7 @@ const getMyOrders = async (email: string) => {
 
       return {
         product,
+        supplier,
         variant,
         wholesale,
         quantity: item.quantity,
@@ -190,6 +205,10 @@ const getAllOrdersForAdmin = async () => {
       path: "items.wholesaleId",
       select: "type label caseItems palletItems fastMovingItems",
     })
+    .populate({
+      path: "items.supplierId", // ✅ FIXED
+      select: "shopName brandName logo email",
+    })
     .sort({ createdAt: -1 })
     .lean();
 
@@ -217,6 +236,14 @@ const getAllOrdersForAdmin = async () => {
           }
         : null;
 
+      const supplier = item.supplierId
+        ? {
+            _id: item.supplierId._id,
+            shopName: item.supplierId.shopName,
+            brandName: item.supplierId.brandName,
+            logo: item.supplierId.logo,
+          }
+        : null;
       // ======================
       // 🟢 VARIANT (ONLY IF EXISTS)
       // ======================
@@ -272,6 +299,7 @@ const getAllOrdersForAdmin = async () => {
 
       return {
         product,
+        supplier,
         variant,
         wholesale,
         quantity: item.quantity,
@@ -283,7 +311,14 @@ const getAllOrdersForAdmin = async () => {
   return formattedOrders;
 };
 
-const getOrderFormSupplier = async (email: string) => {};
+const getOrderFormSupplier = async (email: string) => {
+  const user = await User.findOne({ email });
+  if (!user) {
+    throw new AppError("Your account does not exist", StatusCodes.NOT_FOUND);
+  }
+
+  const supplier = await JoinAsSupplier.findOne({ userId: user._id });
+};
 
 const orderService = {
   createOrder,
