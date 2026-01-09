@@ -16,7 +16,7 @@ const createOrder = async (payload: IOrder, email: string) => {
   let items: OrderItemInput[] = [];
   let totalPrice = 0;
 
-  // 🛒 ORDER FROM CART
+  // ORDER FROM CART
   if (payload.orderType === "addToCart") {
     const cartItems = await Cart.find({ userId: user._id })
       .populate({
@@ -47,10 +47,15 @@ const createOrder = async (payload: IOrder, email: string) => {
     // await Cart.deleteMany({ userId: user._id });
   }
 
-  // ⚡ DIRECT / SINGLE ORDER
+  // SINGLE / DIRECT ORDER
   if (payload.orderType === "single") {
-    items = payload.items;
-    totalPrice = payload.totalPrice;
+    items = payload.items || [];
+
+    totalPrice = items.reduce(
+      (sum, item) =>
+        sum + (Number(item.unitPrice) || 0) * (Number(item.quantity) || 0),
+      0
+    );
   }
 
   const order = await Order.create({

@@ -26,7 +26,7 @@ const orderItemSchema = new Schema(
     },
     unitPrice: {
       type: Number,
-      required: true,
+      // required: true,
       min: 0,
     },
   },
@@ -71,7 +71,7 @@ const orderSchema = new Schema<IOrder>(
     },
     totalPrice: {
       type: Number,
-      required: true,
+      // required: true,
       min: 0,
     },
     billingInfo: {
