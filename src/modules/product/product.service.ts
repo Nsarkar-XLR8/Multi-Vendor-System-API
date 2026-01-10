@@ -286,7 +286,12 @@ const getAllProductForAdmin = async (query: Record<string, any>) => {
   const limit = Number(query.limit) || 10;
   const skip = (page - 1) * limit;
 
-  const data = await Product.find()
+  // 🔴 Only products WITHOUT wholesaleId
+  const filter = {
+    $or: [{ wholesaleId: { $exists: false } }, { wholesaleId: { $size: 0 } }],
+  };
+
+  const data = await Product.find(filter)
     .populate({
       path: "userId",
       select: "firstName lastName email",
@@ -303,7 +308,7 @@ const getAllProductForAdmin = async (query: Record<string, any>) => {
     .skip(skip)
     .limit(limit);
 
-  const total = await Product.countDocuments();
+  const total = await Product.countDocuments(filter);
 
   return {
     meta: {
@@ -315,6 +320,110 @@ const getAllProductForAdmin = async (query: Record<string, any>) => {
     data,
   };
 };
+
+
+const getAllWholeSaleProductForAdmin = async (query: Record<string, any>) => {
+  const page = Number(query.page) || 1;
+  const limit = Number(query.limit) || 10;
+  const skip = (page - 1) * limit;
+
+  const filter = {
+    wholesaleId: { $exists: true, $ne: [] },
+  };
+
+  const products = await Product.find(filter)
+    .select("-variants")
+    .populate("wholesaleId")
+    .populate({
+      path: "categoryId",
+      select: "region slug",
+    })
+    .populate({
+      path: "supplierId",
+      select: "shopName brandName",
+    })
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit);
+
+  const data = products.map((product) => {
+    const productId = product._id.toString();
+
+    const filteredWholesale = product.wholesaleId!
+      // ❌ remove fastMoving type
+      .filter((wh: any) => wh.type !== "fastMoving")
+      // ✅ filter items inside wholesale
+      .map((wh: any) => {
+        const whObj = wh.toObject();
+
+        // PALLET
+        if (whObj.type === "pallet") {
+          whObj.palletItems = whObj.palletItems.map((pallet: any) => ({
+            ...pallet,
+            items: pallet.items.filter(
+              (item: any) => item.productId.toString() === productId
+            ),
+          }));
+        }
+
+        // CASE
+        if (whObj.type === "case") {
+          whObj.caseItems = whObj.caseItems.filter(
+            (item: any) => item.productId.toString() === productId
+          );
+        }
+
+        return whObj;
+      });
+
+    return {
+      _id: product._id,
+      userId: product.userId,
+      categoryId: product.categoryId,
+      supplierId: product.supplierId,
+      title: product.title,
+      slug: product.slug,
+      shortDescription: product.shortDescription,
+      description: product.description,
+      images: product.images,
+      productType: product.productType,
+      productName: product.productName,
+      shelfLife: product.shelfLife,
+      originCountry: product.originCountry,
+      isHalal: product.isHalal,
+      isOrganic: product.isOrganic,
+      isFrozen: product.isFrozen,
+      isKosher: product.isKosher,
+      seo: product.seo,
+      averageRating: product.averageRating,
+      totalRatings: product.totalRatings,
+      totalReviews: product.totalReviews,
+      status: product.status,
+      isFeatured: product.isFeatured,
+      addBy: product.addBy,
+      createdAt: product.createdAt,
+      updatedAt: product.updatedAt,
+      wholesaleId: filteredWholesale,
+      isAvailable: product.isAvailable,
+      quantity: product.quantity,
+    };
+  });
+
+  const total = await Product.countDocuments(filter);
+
+  return {
+    meta: {
+      page,
+      limit,
+      total,
+      totalPage: Math.ceil(total / limit),
+    },
+    data,
+  };
+};
+
+
+
 
 const getSingleProduct = async (id: string) => {
   const isProductExist = await Product.findById(id);
@@ -440,6 +549,7 @@ const updateProduct = async (
 const productService = {
   createProduct,
   getMyAddedProducts,
+  getAllWholeSaleProductForAdmin,
   getSingleProduct,
   getAllProducts,
   getAllProductForAdmin,

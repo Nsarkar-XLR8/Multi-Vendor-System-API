@@ -27,6 +27,8 @@ router.get(
   productController.getAllProductForAdmin
 );
 
+router.get("/all-wholesale", productController.getAllWholeSaleProductForAdmin);
+
 router.get(
   "/:id",
   //   auth(USER_ROLE.ADMIN, USER_ROLE.SUPPLIER),
