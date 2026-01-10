@@ -9,6 +9,7 @@ import JoinAsSupplier from "../joinAsSupplier/joinAsSupplier.model";
 import { User } from "../user/user.model";
 import { IProduct } from "./product.interface";
 import Product from "./product.model";
+import Wholesale from "../wholeSale/wholeSale.model";
 
 const createProduct = async (payload: IProduct, files: any, email: string) => {
   const user = await User.findOne({ email });
@@ -321,7 +322,6 @@ const getAllProductForAdmin = async (query: Record<string, any>) => {
   };
 };
 
-
 const getAllWholeSaleProductForAdmin = async (query: Record<string, any>) => {
   const page = Number(query.page) || 1;
   const limit = Number(query.limit) || 10;
@@ -349,8 +349,8 @@ const getAllWholeSaleProductForAdmin = async (query: Record<string, any>) => {
   const data = products.map((product) => {
     const productId = product._id.toString();
 
-    const filteredWholesale = product.wholesaleId!
-      // ❌ remove fastMoving type
+    const filteredWholesale = product
+      .wholesaleId! // ❌ remove fastMoving type
       .filter((wh: any) => wh.type !== "fastMoving")
       // ✅ filter items inside wholesale
       .map((wh: any) => {
@@ -422,7 +422,60 @@ const getAllWholeSaleProductForAdmin = async (query: Record<string, any>) => {
   };
 };
 
+const getFastMovingProducts = async (query: Record<string, any>) => {
+  const page = Number(query.page) || 1;
+  const limit = Number(query.limit) || 10;
+  const skip = (page - 1) * limit;
 
+  const fastMovingWholesale = await Wholesale.findOne({
+    type: "fastMoving",
+    isActive: true,
+  });
+
+  if (!fastMovingWholesale) {
+    return {
+      meta: { page, limit, total: 0, totalPage: 0 },
+      data: [],
+    };
+  }
+
+  const productIds = fastMovingWholesale.fastMovingItems!.map(
+    (item) => item.productId
+  );
+
+  const products = await Product.find({
+    _id: { $in: productIds },
+  })
+    .select("-variants")
+    .populate({
+      path: "userId",
+      select: "firstName lastName email",
+    })
+    .populate({
+      path: "categoryId",
+      select: "region",
+    })
+    .populate({
+      path: "supplierId",
+      select: "shopName brandName logo",
+    })
+    .populate({
+      path: "wholesaleId",
+      match: { type: "fastMoving" },
+    })
+    .skip(skip)
+    .limit(limit);
+
+  return {
+    meta: {
+      page,
+      limit,
+      total: productIds.length,
+      totalPage: Math.ceil(productIds.length / limit),
+    },
+    data: products,
+  };
+};
 
 
 const getSingleProduct = async (id: string) => {
@@ -550,6 +603,7 @@ const productService = {
   createProduct,
   getMyAddedProducts,
   getAllWholeSaleProductForAdmin,
+  getFastMovingProducts,
   getSingleProduct,
   getAllProducts,
   getAllProductForAdmin,

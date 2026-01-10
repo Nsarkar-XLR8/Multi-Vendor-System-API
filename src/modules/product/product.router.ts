@@ -28,6 +28,7 @@ router.get(
 );
 
 router.get("/all-wholesale", productController.getAllWholeSaleProductForAdmin);
+router.get("/all-fast-moving", productController.getFastMovingProducts);
 
 router.get(
   "/:id",

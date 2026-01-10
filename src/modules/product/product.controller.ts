@@ -64,6 +64,18 @@ const getAllWholeSaleProductForAdmin = catchAsync(async (req, res) => {
   });
 });
 
+const getFastMovingProducts = catchAsync(async (req, res) => {
+  const result = await productService.getFastMovingProducts(req.query);
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: "Products retrieved successfully",
+    meta: result.meta,
+    data: result.data,
+  });
+});
+
 const getSingleProduct = catchAsync(async (req, res) => {
   const { id } = req.params;
   const result = await productService.getSingleProduct(id);
@@ -108,6 +120,7 @@ const productController = {
   getMyAddedProducts,
   getAllProducts,
   getAllWholeSaleProductForAdmin,
+  getFastMovingProducts,
   getAllProductForAdmin,
   getSingleProduct,
   updateProductStatus,
