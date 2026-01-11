@@ -30,6 +30,8 @@ router.get(
 router.get("/all-wholesale", productController.getAllWholeSaleProductForAdmin);
 router.get("/all-fast-moving", productController.getFastMovingProducts);
 
+router.get("/filter", productController.getFilterCategories);
+
 router.get(
   "/:id",
   //   auth(USER_ROLE.ADMIN, USER_ROLE.SUPPLIER),

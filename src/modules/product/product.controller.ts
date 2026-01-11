@@ -30,7 +30,6 @@ const getMyAddedProducts = catchAsync(async (req, res) => {
 
 const getAllProducts = catchAsync(async (req, res) => {
   const result = await productService.getAllProducts(req.query);
-  
 
   sendResponse(res, {
     statusCode: StatusCodes.OK,
@@ -60,7 +59,7 @@ const getAllWholeSaleProductForAdmin = catchAsync(async (req, res) => {
   sendResponse(res, {
     statusCode: StatusCodes.OK,
     success: true,
-    message: "Products retrieved successfully",
+    message: "Wholesale products retrieved successfully",
     meta: result.meta,
     data: result.data,
   });
@@ -72,7 +71,7 @@ const getFastMovingProducts = catchAsync(async (req, res) => {
   sendResponse(res, {
     statusCode: StatusCodes.OK,
     success: true,
-    message: "Products retrieved successfully",
+    message: "Fast moving products retrieved successfully",
     meta: result.meta,
     data: result.data,
   });
@@ -86,6 +85,17 @@ const getSingleProduct = catchAsync(async (req, res) => {
     statusCode: StatusCodes.OK,
     success: true,
     message: "Product retrieved successfully",
+    data: result,
+  });
+});
+
+const getFilterCategories = catchAsync(async (req, res) => {
+  const result = await productService.getFilterCategories();
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: "Product filter categories retrieved successfully",
     data: result,
   });
 });
@@ -124,6 +134,7 @@ const productController = {
   getAllWholeSaleProductForAdmin,
   getFastMovingProducts,
   getAllProductForAdmin,
+  getFilterCategories,
   getSingleProduct,
   updateProductStatus,
   updateProduct,

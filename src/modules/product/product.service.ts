@@ -1,4 +1,5 @@
 import { StatusCodes } from "http-status-codes";
+import { PipelineStage } from "mongoose";
 import AppError from "../../errors/AppError";
 import { buildAggregationPipeline } from "../../lib/aggregationHelpers";
 import generateShopSlug from "../../middleware/generateShopSlug";
@@ -11,7 +12,6 @@ import { User } from "../user/user.model";
 import Wholesale from "../wholeSale/wholeSale.model";
 import { IProduct } from "./product.interface";
 import Product from "./product.model";
-import { PipelineStage } from "mongoose";
 
 const createProduct = async (payload: IProduct, files: any, email: string) => {
   const user = await User.findOne({ email });
@@ -84,8 +84,6 @@ const createProduct = async (payload: IProduct, files: any, email: string) => {
   const result = await Product.create(data);
   return result;
 };
-
-//!____________________________________________________________________________
 
 const getMyAddedProducts = async (email: string) => {
   const user = await User.findOne({ email });
@@ -397,7 +395,6 @@ const getAllProductForAdmin = async (query: Record<string, any>) => {
   };
 };
 
-
 const getAllWholeSaleProductForAdmin = async (query: Record<string, any>) => {
   const page = Number(query.page) || 1;
   const limit = Number(query.limit) || 10;
@@ -553,6 +550,57 @@ const getFastMovingProducts = async (query: Record<string, any>) => {
   };
 };
 
+
+const getFilterCategories = async () => {
+  const result = await Product.aggregate([
+    // Join categories
+    {
+      $lookup: {
+        from: "categories",
+        localField: "categoryId",
+        foreignField: "_id",
+        as: "category",
+      },
+    },
+    { $unwind: { path: "$category", preserveNullAndEmptyArrays: true } },
+
+    // Join suppliers
+    {
+      $lookup: {
+        from: "joinassuppliers",
+        localField: "supplierId",
+        foreignField: "_id",
+        as: "supplier",
+      },
+    },
+    { $unwind: { path: "$supplier", preserveNullAndEmptyArrays: true } },
+
+    // Group to get unique values
+    {
+      $group: {
+        _id: null,
+        allBrands: { $addToSet: "$supplier.brandName" },
+        allRegion: { $addToSet: "$category.region" },
+        allOriginCountry: { $addToSet: "$originCountry" },
+      },
+    },
+
+    // Project only needed fields
+    {
+      $project: {
+        _id: 0,
+        allBrands: 1,
+        allRegion: 1,
+        allOriginCountry: 1,
+      },
+    },
+  ]);
+
+  return result[0] || { allBrands: [], allRegion: [], allOriginCountry: [] };
+};
+
+
+
 const getSingleProduct = async (id: string) => {
   const isProductExist = await Product.findById(id);
   if (!isProductExist) {
@@ -682,6 +730,7 @@ const productService = {
   getSingleProduct,
   getAllProducts,
   getAllProductForAdmin,
+  getFilterCategories,
   updateProductStatus,
   updateProduct,
 };
