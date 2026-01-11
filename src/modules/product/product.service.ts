@@ -11,6 +11,7 @@ import { User } from "../user/user.model";
 import Wholesale from "../wholeSale/wholeSale.model";
 import { IProduct } from "./product.interface";
 import Product from "./product.model";
+import { PipelineStage } from "mongoose";
 
 const createProduct = async (payload: IProduct, files: any, email: string) => {
   const user = await User.findOne({ email });
@@ -291,13 +292,16 @@ const getAllProductForAdmin = async (query: Record<string, any>) => {
     $or: [{ wholesaleId: { $exists: false } }, { wholesaleId: { $size: 0 } }],
   };
 
-  const pipeline = [
+  const pipeline: PipelineStage[] = [
+    // ================= BASE + SEARCH + SORT + PAGINATION =================
     ...buildAggregationPipeline(query, {
       filters: baseFilter,
       searchFields: ["title", "originCountry", "productName", "productType"],
       page: Number(query.page) || 1,
       limit: Number(query.limit) || 10,
     }),
+
+    // ================= LOOKUPS =================
     {
       $lookup: {
         from: "users",
@@ -318,13 +322,28 @@ const getAllProductForAdmin = async (query: Record<string, any>) => {
     { $unwind: { path: "$category", preserveNullAndEmptyArrays: true } },
     {
       $lookup: {
-        from: "suppliers",
+        from: "joinassuppliers",
         localField: "supplierId",
         foreignField: "_id",
         as: "supplier",
       },
     },
-    { $unwind: { path: "$supplier", preserveNullAndEmptyArrays: true } },
+    { $addFields: { supplier: { $arrayElemAt: ["$supplier", 0] } } },
+
+    // ================= DYNAMIC FILTERS =================
+    {
+      $match: {
+        ...(query.categoryRegion && {
+          "category.region": query.categoryRegion,
+        }),
+        ...(query.originCountry && { originCountry: query.originCountry }),
+        ...(query.supplierBrand && {
+          "supplier.brandName": query.supplierBrand,
+        }),
+      },
+    },
+
+    // ================= PROJECT =================
     {
       $project: {
         title: 1,
@@ -357,12 +376,14 @@ const getAllProductForAdmin = async (query: Record<string, any>) => {
         updatedAt: 1,
         user: { _id: 1, firstName: 1, lastName: 1, email: 1 },
         category: { _id: 1, region: 1 },
-        supplier: { _id: 1, shopName: 1, brandName: 1, logo: 1 },
+        supplier: { _id: 1, shopName: 1, brandName: 1 },
       },
     },
   ];
 
   const data = await Product.aggregate(pipeline);
+
+  // Count total after base filter (not including dynamic filters for simplicity)
   const total = await Product.countDocuments(baseFilter);
 
   return {
@@ -375,6 +396,7 @@ const getAllProductForAdmin = async (query: Record<string, any>) => {
     data,
   };
 };
+
 
 const getAllWholeSaleProductForAdmin = async (query: Record<string, any>) => {
   const page = Number(query.page) || 1;
