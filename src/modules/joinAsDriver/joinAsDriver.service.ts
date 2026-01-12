@@ -245,44 +245,42 @@ const updateMyProfileInDB = async (id: string, payload: Partial<IJoinAsDriver>) 
 const registerDriverUnified = async (payload: any, files: any, currentUser?: any) => {
   const session = await mongoose.startSession();
   session.startTransaction();
-
-  // Track uploaded images for manual rollback if transaction fails
   const uploadedImages: { public_id: string; url: string }[] = [];
 
   try {
     let userId: string;
 
     if (currentUser) {
-      // --- SCENARIO 1: LOGGED IN ---
-      const user = await User.isUserExistByEmail(currentUser.email);
+      // --- LOGGED IN USER ---
+      const user = await User.findOne({ email: currentUser.email });
       if (!user) throw new AppError("User not found", StatusCodes.NOT_FOUND);
-      if (user.role === "driver") throw new AppError("Already a driver", StatusCodes.BAD_REQUEST);
-      if (user.role === "supplier") throw new AppError("Suppliers cannot be drivers", StatusCodes.FORBIDDEN);
-
+      
+      // Check if they are already a driver or have an active application
+      if (user.role === "driver") throw new AppError("You are already a registered driver", StatusCodes.BAD_REQUEST);
+      
       const existingApp = await JoinAsDriver.findOne({ userId: user._id });
       if (existingApp) throw new AppError(`Application already exists: ${existingApp.status}`, StatusCodes.BAD_REQUEST);
 
       userId = user._id;
     } else {
-      // --- SCENARIO 2: GUEST --- 
-      if (!payload.password) throw new AppError("Password is required", StatusCodes.BAD_REQUEST);
-
+      // --- NEW GUEST REGISTRATION --- 
       const isExist = await User.findOne({ $or: [{ email: payload.email }, { phone: payload.phone }] });
       if (isExist) throw new AppError("Email or Phone already exists", StatusCodes.CONFLICT);
 
-      // JUST PASS THE PLAIN PASSWORD - The Schema pre-save hook will hash it automatically 
+      // We create them as a 'customer' initially because they haven't been approved yet.
+      // SENIOR TIP: You could also create a role called 'pending_driver'
       const [newUser] = await User.create([{
         ...payload,
-        role: "customer",
+        role: "customer", 
         isVerified: false
       }], { session });
 
       userId = newUser._id;
     }
 
-    // --- FILE UPLOAD --- 
+    // --- FILE HANDLING --- 
     const documentFiles = files?.documents || [];
-    if (documentFiles.length === 0) throw new AppError("Documents are required", StatusCodes.BAD_REQUEST);
+    if (documentFiles.length === 0) throw new AppError("Please upload required documents", StatusCodes.BAD_REQUEST);
 
     for (const file of documentFiles) {
       const uploaded = await uploadToCloudinary(file.path, "drivers/documents");
@@ -292,27 +290,71 @@ const registerDriverUnified = async (payload: any, files: any, currentUser?: any
       });
     }
 
-    // --- CREATE DRIVER PROFILE ---
-    const [newDriver] = await JoinAsDriver.create([{
+    // --- CREATE THE APPLICATION ---
+    // This is the "JoinAsDriver" record that the Admin will review
+    const [newDriverApplication] = await JoinAsDriver.create([{
       ...payload,
       userId,
       documentUrl: uploadedImages,
-      status: "pending"
+      status: "pending" 
     }], { session });
 
     await session.commitTransaction();
-    return { userId, driverId: newDriver._id };
+    
+    // Return unified data
+    return { 
+        userId, 
+        applicationId: newDriverApplication._id,
+        currentRole: "customer",
+        applicationStatus: "pending" 
+    };
 
   } catch (error) {
     await session.abortTransaction();
+    // Rollback images if DB fails
+    for (const img of uploadedImages) { await deleteFromCloudinary(img.public_id); }
+    throw error;
+  } finally {
+    session.endSession();
+  }
+};
 
-    // ROLLBACK: Cleanup Cloudinary if DB fails
-    if (uploadedImages.length > 0) {
-      for (const img of uploadedImages) {
-        await deleteFromCloudinary(img.public_id);
-      }
+const approveDriverApplication = async (applicationId: string) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    // 1. Find the application
+    const application = await JoinAsDriver.findById(applicationId).session(session);
+    if (!application) {
+      throw new AppError("Application not found", StatusCodes.NOT_FOUND);
     }
 
+    if (application.status === 'approved') {
+      throw new AppError("Application is already approved", StatusCodes.BAD_REQUEST);
+    }
+
+    // 2. Update Application Status
+    application.status = 'approved';
+    await application.save({ session });
+
+    // 3. Update User Role (The fix for your problem)
+    const user = await User.findByIdAndUpdate(
+      application.userId,
+      { role: 'driver' }, // Elevate the role here
+      { session, new: true }
+    );
+
+    if (!user) {
+      throw new AppError("Associated user not found", StatusCodes.NOT_FOUND);
+    }
+
+    // 4. Commit everything
+    await session.commitTransaction();
+    return { application, user };
+
+  } catch (error) {
+    await session.abortTransaction();
     throw error;
   } finally {
     session.endSession();
@@ -329,6 +371,7 @@ export const joinAsDriverService = {
   getSingleDriver,
   deleteDriver,
   registerDriverUnified,
-  updateMyProfileInDB
+  updateMyProfileInDB,
+  approveDriverApplication
 
 };

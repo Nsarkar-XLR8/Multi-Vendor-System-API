@@ -31,6 +31,13 @@ router.get(
   joinAsDriverController.getAllDrivers
 );
 
+// Access: {{baseUrl}}/admin/driver/approve/:id
+router.patch(
+  "/approve/:id",
+  auth(USER_ROLE.ADMIN),
+  joinAsDriverController.approveDriverApplication
+);
+
 // Access: {{baseUrl}}/admin/driver/suspend/:id
 router.put(
   "/suspend/:id",

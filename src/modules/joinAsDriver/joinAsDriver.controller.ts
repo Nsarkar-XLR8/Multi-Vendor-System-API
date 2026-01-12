@@ -112,6 +112,18 @@ const registerDriverUnified = catchAsync(async (req, res) => {
   });
 });
 
+const approveDriverApplication = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const result = await joinAsDriverService.approveDriverApplication(id);
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: "Driver approved and role updated successfully!",
+    data: result,
+  });
+});
+
 export const joinAsDriverController = {
   getMyDriverInfo,
   updateDriverStatus,
@@ -121,6 +133,7 @@ export const joinAsDriverController = {
   getSingleDriver,
   deleteDriver,
   registerDriverUnified,
-  updateMyProfile
+  updateMyProfile,
+  approveDriverApplication
 
 };
