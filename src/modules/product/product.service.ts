@@ -98,12 +98,17 @@ const getMyAddedProducts = async (email: string) => {
   return result;
 };
 
-//! only for approved products
 const getAllProducts = async (query: any) => {
   const {
     search,
     region,
+    originCountry,
     productType,
+    unit,
+    isHalal,
+    isOrganic,
+    isFrozen,
+    isKosher,
     minPrice,
     maxPrice,
     page = 1,
@@ -116,47 +121,39 @@ const getAllProducts = async (query: any) => {
 
   const pipeline: any[] = [];
 
-  /* =====================================================
-     CATEGORY LOOKUP (clean fields)
-  ===================================================== */
+  // ===================== CATEGORY LOOKUP =====================
   pipeline.push({
     $lookup: {
       from: "categories",
       let: { categoryId: "$categoryId" },
       pipeline: [
         { $match: { $expr: { $eq: ["$_id", "$$categoryId"] } } },
-        { $project: { _id: 1, region: 1, slug: 1 } }, // only required fields
+        { $project: { _id: 1, region: 1, slug: 1 } },
       ],
       as: "categoryId",
     },
   });
-
   pipeline.push({
     $unwind: { path: "$categoryId", preserveNullAndEmptyArrays: true },
   });
 
-  /* =====================================================
-     SUPPLIER LOOKUP (only shopName & brandName)
-  ===================================================== */
+  // ===================== SUPPLIER LOOKUP =====================
   pipeline.push({
     $lookup: {
-      from: "joinassuppliers", // JoinAsSupplier collection
+      from: "joinassuppliers",
       let: { supplierId: "$supplierId" },
       pipeline: [
         { $match: { $expr: { $eq: ["$_id", "$$supplierId"] } } },
-        { $project: { _id: 1, shopName: 1, brandName: 1 } }, // ONLY these two
+        { $project: { _id: 1, shopName: 1, brandName: 1 } },
       ],
       as: "supplierId",
     },
   });
-
   pipeline.push({
     $unwind: { path: "$supplierId", preserveNullAndEmptyArrays: true },
   });
 
-  /* =====================================================
-     WHOLESALE LOOKUP
-  ===================================================== */
+  // ===================== WHOLESALE LOOKUP =====================
   pipeline.push({
     $lookup: {
       from: "wholesales",
@@ -165,7 +162,6 @@ const getAllProducts = async (query: any) => {
         {
           $match: {
             $expr: { $in: ["$_id", "$$wholesaleIds"] },
-            type: { $ne: "fastMoving" },
             isActive: true,
           },
         },
@@ -174,9 +170,7 @@ const getAllProducts = async (query: any) => {
     },
   });
 
-  /* =====================================================
-     SEARCH
-  ===================================================== */
+  // ===================== SEARCH =====================
   if (search) {
     pipeline.push({
       $match: {
@@ -191,48 +185,97 @@ const getAllProducts = async (query: any) => {
     });
   }
 
-  /* =====================================================
-     FILTERS
-  ===================================================== */
-  if (region) {
-    pipeline.push({ $match: { "categoryId.region": region } });
+  // ===================== FILTERS =====================
+  const match: any = {};
+
+  if (region) match["categoryId.region"] = region;
+  if (originCountry) match.originCountry = originCountry;
+  if (productType) match.productType = productType;
+  if (isHalal !== undefined) match.isHalal = isHalal === "true";
+  if (isOrganic !== undefined) match.isOrganic = isOrganic === "true";
+  if (isFrozen !== undefined) match.isFrozen = isFrozen === "true";
+  if (isKosher !== undefined) match.isKosher = isKosher === "true";
+
+  if (Object.keys(match).length > 0) pipeline.push({ $match: match });
+
+  // ===================== FILTER BY UNIT =====================
+  if (unit) {
+    pipeline.push({
+      $match: {
+        "variants.unit": unit,
+      },
+    });
   }
 
-  if (productType) {
-    pipeline.push({ $match: { productType } });
-  }
+  // ===================== ADD WHOLESALE MIN PRICE =====================
+  pipeline.push({
+    $addFields: {
+      wholesaleMinPrice: {
+        $min: {
+          $map: {
+            input: "$wholesaleId",
+            as: "wh",
+            in: {
+              $switch: {
+                branches: [
+                  {
+                    case: { $eq: ["$$wh.type", "case"] },
+                    then: { $min: "$$wh.caseItems.price" },
+                  },
+                  {
+                    case: { $eq: ["$$wh.type", "pallet"] },
+                    then: { $min: "$$wh.palletItems.price" },
+                  },
+                ],
+                default: null,
+              },
+            },
+          },
+        },
+      },
+    },
+  });
 
+  // ===================== PRICE FILTER (Wholesale Aware) =====================
   if (minPrice || maxPrice) {
     pipeline.push({
       $match: {
-        priceFrom: {
-          ...(minPrice && { $gte: Number(minPrice) }),
-          ...(maxPrice && { $lte: Number(maxPrice) }),
+        $expr: {
+          $and: [
+            minPrice
+              ? {
+                  $gte: [
+                    { $ifNull: ["$wholesaleMinPrice", "$priceFrom"] },
+                    Number(minPrice),
+                  ],
+                }
+              : {},
+            maxPrice
+              ? {
+                  $lte: [
+                    { $ifNull: ["$wholesaleMinPrice", "$priceFrom"] },
+                    Number(maxPrice),
+                  ],
+                }
+              : {},
+          ],
         },
       },
     });
   }
 
-  /* =====================================================
-     COUNT FOR PAGINATION
-  ===================================================== */
+  // ===================== COUNT FOR PAGINATION =====================
   const countPipeline = [...pipeline, { $count: "total" }];
   const countResult = await Product.aggregate(countPipeline);
   const total = countResult[0]?.total || 0;
 
-  /* =====================================================
-     PAGINATION
-  ===================================================== */
+  // ===================== PAGINATION =====================
   pipeline.push({ $skip: skip }, { $limit: pageLimit });
 
-  /* =====================================================
-     EXECUTE QUERY
-  ===================================================== */
+  // ===================== EXECUTE =====================
   const products = await Product.aggregate(pipeline);
 
-  /* =====================================================
-     WHOLESALE VS RETAIL FORMAT
-  ===================================================== */
+  // ===================== WHOLESALE VS RETAIL FORMAT =====================
   const formattedProducts = products.map((product: any) => {
     const productId = product._id.toString();
 
@@ -242,7 +285,7 @@ const getAllProducts = async (query: any) => {
           const caseItems = wh.caseItems?.filter(
             (item: any) => item.productId?.toString() === productId
           );
-          if (!caseItems || caseItems.length === 0) return null;
+          if (!caseItems?.length) return null;
           return { ...wh, caseItems };
         }
 
@@ -252,11 +295,11 @@ const getAllProducts = async (query: any) => {
               const items = p.items?.filter(
                 (i: any) => i.productId?.toString() === productId
               );
-              if (!items || items.length === 0) return null;
+              if (!items?.length) return null;
               return { ...p, items };
             })
             .filter(Boolean);
-          if (!palletItems || palletItems.length === 0) return null;
+          if (!palletItems?.length) return null;
           return { ...wh, palletItems };
         }
 
@@ -265,16 +308,13 @@ const getAllProducts = async (query: any) => {
       .filter(Boolean);
 
     if (wholesales.length > 0) {
-      const { variants, priceFrom, ...rest } = product;
+      const { variants, priceFrom, discountPriceFrom, ...rest } = product;
       return { ...rest, wholesaleId: wholesales };
     }
 
     return { ...product, wholesaleId: [] };
   });
 
-  /* =====================================================
-     FINAL RESPONSE
-  ===================================================== */
   return {
     meta: {
       page: pageNumber,
@@ -891,8 +931,6 @@ const getCaseDealsProducts = async () => {
   // Step 3: Return only products that have at least 1 case wholesale
   return formattedProducts.filter((p: any) => p.wholesaleId.length > 0);
 };
-
-
 
 const updateProductStatus = async (id: string, status: string) => {
   const isProductExist = await Product.findById(id);
