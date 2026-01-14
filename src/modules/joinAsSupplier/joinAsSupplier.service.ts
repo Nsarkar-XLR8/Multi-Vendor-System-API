@@ -74,13 +74,39 @@ const joinAsSupplier = async (
      * CASE 1️⃣ Logged-in user
      ===============================*/
 
-    // console.log(currentUser);
-
     if (currentUser) {
       const dbUser = await User.findById(currentUser.id).session(session);
-
       if (!dbUser) {
-        throw new AppError("User not found", StatusCodes.NOT_FOUND);
+        throw new AppError(
+          "Your account does not exist",
+          StatusCodes.NOT_FOUND
+        );
+      }
+
+      if (payload.shopName) {
+        const existingShopName = await User.findOne({
+          shopName: { $regex: `^${payload.shopName}$`, $options: "i" },
+        }).session(session);
+
+        if (existingShopName) {
+          throw new AppError(
+            "Shop name already exists. Please choose a different name.",
+            StatusCodes.BAD_REQUEST
+          );
+        }
+      }
+
+      if (payload.brandName) {
+        const existingBrandName = await User.findOne({
+          brandName: { $regex: `^${payload.brandName}$`, $options: "i" },
+        }).session(session);
+
+        if (existingBrandName) {
+          throw new AppError(
+            "Brand name already exists. Please choose a different name.",
+            StatusCodes.BAD_REQUEST
+          );
+        }
       }
 
       const existingRequest = await JoinAsSupplier.findOne({
@@ -155,15 +181,42 @@ const joinAsSupplier = async (
 
     if (alreadySupplier) {
       throw new AppError(
-        "Supplier request already exists",
+        "You already have a supplier request",
         StatusCodes.BAD_REQUEST
       );
     }
 
     /** ===============================
-     * Create supplier request
+     * Generate & validate shopSlug
      ===============================*/
     const shopSlug = generateShopSlug(payload.shopName);
+
+    const existingShopSlug = await JoinAsSupplier.findOne({
+      shopSlug: { $regex: `^${shopSlug}$`, $options: "i" },
+    }).session(session);
+
+    if (existingShopSlug) {
+      throw new AppError(
+        "Shop name already exists. Please choose a different name.",
+        StatusCodes.BAD_REQUEST
+      );
+    }
+
+    /** ===============================
+     * Validate brandName (optional)
+     ===============================*/
+    if (payload.brandName) {
+      const existingBrand = await JoinAsSupplier.findOne({
+        brandName: { $regex: `^${payload.brandName}$`, $options: "i" },
+      }).session(session);
+
+      if (existingBrand) {
+        throw new AppError(
+          "Brand name already exists. Please choose a different name.",
+          StatusCodes.BAD_REQUEST
+        );
+      }
+    }
 
     const supplierRequest = await JoinAsSupplier.create(
       [
