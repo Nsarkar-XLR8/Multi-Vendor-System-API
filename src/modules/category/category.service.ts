@@ -3,47 +3,45 @@ import countries from "world-countries";
 import AppError from "../../errors/AppError";
 import { regionMap } from "../../lib/globalType";
 import generateShopSlug from "../../middleware/generateShopSlug";
+import { uploadToCloudinary } from "../../utils/cloudinary";
 import { ICategory } from "./category.interface";
 import category from "./category.model";
 
-// const createCategory = async (payload: ICategory) => {
-//   const isExistRegion = await category.findOne({
-//     name: { $regex: `^${payload.region}$`, $options: "i" },
-//   });
+const createCategory = async (
+  payload: ICategory,
+  productImg?: Express.Multer.File,
+  regionImg?: Express.Multer.File
+) => {
+  if (!productImg || !regionImg) {
+    throw new AppError(
+      "Both product image and region image are required",
+      StatusCodes.BAD_REQUEST
+    );
+  }
 
-//   if (isExistRegion) {
-//     throw new AppError(
-//       `${payload.region} category already exists`,
-//       StatusCodes.CONFLICT
-//     );
-//   }
+  /** ===============================
+   * Upload product image
+   ===============================*/
+  const uploadedProductImage = await uploadToCloudinary(
+    productImg.path,
+    "product-img"
+  );
 
-//   const isExistProductType = await category.findOne({
-//     name: { $regex: `^${payload.productType}$`, $options: "i" },
-//   });
+  /** ===============================
+   * Upload region image
+   ===============================*/
+  const uploadedRegionImage = await uploadToCloudinary(
+    regionImg.path,
+    "region-img"
+  );
 
-//   if (isExistProductType) {
-//     throw new AppError(
-//       `${payload.productType} category already exists ${payload.region}`,
-//       StatusCodes.CONFLICT
-//     );
-//   }
-
-//   const slug = generateShopSlug(payload.region || payload.productType || "");
-
-//   const result = await category.create({
-//     ...payload,
-//     slug,
-//   });
-
-//   return result;
-// };
-
-const createCategory = async (payload: ICategory) => {
-  // 1️⃣ Check if region exists
+  /** ===============================
+   * Check if region exists
+   ===============================*/
   const isExistRegion = await category.findOne({
     region: { $regex: `^${payload.region}$`, $options: "i" },
   });
+
   if (isExistRegion) {
     throw new AppError(
       `${payload.region} category already exists`,
@@ -51,10 +49,13 @@ const createCategory = async (payload: ICategory) => {
     );
   }
 
-  // 2️⃣ Check if productType exists
+  /** ===============================
+   * Check if productType exists
+   ===============================*/
   const isExistProductType = await category.findOne({
     productType: { $regex: `^${payload.productType}$`, $options: "i" },
   });
+
   if (isExistProductType) {
     throw new AppError(
       `${payload.productType} category already exists in ${payload.region}`,
@@ -62,14 +63,17 @@ const createCategory = async (payload: ICategory) => {
     );
   }
 
-  // 3️⃣ Generate slug
+  /** ===============================
+   * Generate slug
+   ===============================*/
   const slug = generateShopSlug(payload.region || payload.productType || "");
 
-  // Normalize input and ensure mappedRegion is always a string
+  /** ===============================
+   * Map region → countries
+   ===============================*/
   const regionInput = payload.region?.trim().toLowerCase() || "";
   const mappedRegion: string = regionMap[regionInput] || payload.region || "";
 
-  // Find countries dynamically (case-insensitive + safe check)
   const countryList = countries
     .filter(
       (c) =>
@@ -79,10 +83,21 @@ const createCategory = async (payload: ICategory) => {
     )
     .map((c) => c.name.common);
 
+  /** ===============================
+   * Create category
+   ===============================*/
   const result = await category.create({
     ...payload,
     slug,
     country: countryList,
+    productImage: {
+      url: uploadedProductImage.secure_url,
+      public_id: uploadedProductImage.public_id,
+    },
+    regionImage: {
+      url: uploadedRegionImage.secure_url,
+      public_id: uploadedRegionImage.public_id,
+    },
   });
 
   return result;

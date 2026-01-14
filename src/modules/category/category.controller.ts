@@ -3,7 +3,19 @@ import sendResponse from "../../utils/sendResponse";
 import categoryService from "./category.service";
 
 const createCategory = catchAsync(async (req, res) => {
-  const result = await categoryService.createCategory(req.body);
+  const files = req.files as {
+    productImage?: Express.Multer.File[];
+    regionImage?: Express.Multer.File[];
+  };
+
+  const productImg = files?.productImage?.[0];
+  const regionImg = files?.regionImage?.[0];
+
+  const result = await categoryService.createCategory(
+    req.body,
+    productImg,
+    regionImg
+  );
 
   sendResponse(res, {
     statusCode: 201,
@@ -12,6 +24,7 @@ const createCategory = catchAsync(async (req, res) => {
     data: result,
   });
 });
+
 
 const getCategories = catchAsync(async (req, res) => {
   const page = Number(req.query.page) || 1;
