@@ -14,7 +14,15 @@ router.post(
 );
 
 router.get("/get-all", categoryController.getCategories);
-router.put("/update/:id", categoryController.updateCategory);
+router.put(
+  "/update/:id",
+  upload.fields([
+    { name: "productImage", maxCount: 1 },
+    { name: "regionImage", maxCount: 1 },
+  ]),
+  categoryController.updateCategory
+);
+
 router.delete("/delete/:id", categoryController.deleteCategory);
 
 const categoryRouter = router;
