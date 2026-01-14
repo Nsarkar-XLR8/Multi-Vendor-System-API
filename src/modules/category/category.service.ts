@@ -203,25 +203,10 @@ const updateCategory = async (
   return result;
 };
 
-const deleteCategory = async (id: string) => {
-  throw new AppError(
-    "Here some logic part will be added don't worry",
-    StatusCodes.BAD_REQUEST
-  );
-
-  const isCategory = await category.findById(id);
-  if (!isCategory) {
-    throw new AppError("Category not found", StatusCodes.NOT_FOUND);
-  }
-
-  await category.findByIdAndDelete(id);
-};
-
 const categoryService = {
   createCategory,
   getCategories,
   updateCategory,
-  deleteCategory,
 };
 
 export default categoryService;
