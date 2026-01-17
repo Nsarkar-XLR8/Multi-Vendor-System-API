@@ -17,13 +17,20 @@ const createOrder = catchAsync(async (req, res) => {
 
 const getMyOrders = catchAsync(async (req, res) => {
   const { email } = req.user;
-  const result = await orderService.getMyOrders(email);
+  const { page, limit, orderStatus } = req.query;
+
+  const result = await orderService.getMyOrders(email, {
+    page,
+    limit,
+    orderStatus,
+  });
 
   sendResponse(res, {
     statusCode: StatusCodes.OK,
     success: true,
     message: "Orders retrieved successfully",
-    data: result,
+    data: result.data,
+    meta: result.meta,
   });
 });
 
@@ -50,7 +57,6 @@ const getOrderFormSupplier = catchAsync(async (req, res) => {
     data: result.data,
   });
 });
-
 
 const cancelMyOrder = catchAsync(async (req, res) => {
   const { email } = req.user;

@@ -65,7 +65,7 @@ const createOrder = async (payload: any, email: string) => {
         // Variant
         if (item.variantId) {
           const variant = product.variants?.find(
-            (v: any) => v._id.toString() === item.variantId.toString()
+            (v: any) => v._id.toString() === item.variantId.toString(),
           );
           if (!variant) throw new AppError("Invalid variant", 400);
           unitPrice = variant.price;
@@ -74,13 +74,13 @@ const createOrder = async (payload: any, email: string) => {
         // Wholesale
         if (item.wholesaleId) {
           const wholesale: any = product.wholesaleId?.find(
-            (w: any) => w._id.toString() === item.wholesaleId.toString()
+            (w: any) => w._id.toString() === item.wholesaleId.toString(),
           );
           if (!wholesale) throw new AppError("Invalid wholesale", 400);
 
           if (wholesale.type === "case") {
             const caseItem = wholesale.caseItems.find(
-              (c: any) => c.productId.toString() === product._id.toString()
+              (c: any) => c.productId.toString() === product._id.toString(),
             );
             if (!caseItem) throw new AppError("Invalid case item", 400);
             unitPrice = caseItem.price;
@@ -123,7 +123,7 @@ const createOrder = async (payload: any, email: string) => {
           billingInfo: payload.billingInfo,
         },
       ],
-      { session }
+      { session },
     );
 
     // !Clear cart if needed____________________________
@@ -142,17 +142,27 @@ const createOrder = async (payload: any, email: string) => {
   }
 };
 
-const getMyOrders = async (email: string) => {
+const getMyOrders = async (
+  email: string,
+  query: { page?: any; limit?: any; orderStatus?: any },
+) => {
   const user = await User.findOne({ email });
   if (!user) {
     throw new AppError("User not found", StatusCodes.NOT_FOUND);
   }
 
-  const orders = await Order.find({ userId: user._id })
-    .populate({
-      path: "userId",
-      select: "firstName lastName email",
-    })
+  const page = Number(query.page) || 1;
+  const limit = Number(query.limit) || 10;
+  const skip = (page - 1) * limit;
+
+  const filter: any = { userId: user._id };
+
+  if (query.orderStatus) {
+    filter.orderStatus = query.orderStatus; // pending | delivered | cancelled
+  }
+
+  const orders = await Order.find(filter)
+    .populate({ path: "userId", select: "firstName lastName email" })
     .populate({
       path: "items.productId",
       select: "title slug images variants",
@@ -162,11 +172,15 @@ const getMyOrders = async (email: string) => {
       select: "type label caseItems palletItems fastMovingItems",
     })
     .populate({
-      path: "items.supplierId", // ✅ FIXED
+      path: "items.supplierId",
       select: "shopName brandName logo email",
     })
     .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit)
     .lean();
+
+  const total = await Order.countDocuments(filter);
 
   const formattedOrders = orders.map((order) => ({
     _id: order._id,
@@ -181,9 +195,6 @@ const getMyOrders = async (email: string) => {
     purchaseDate: order.purchaseDate,
 
     items: order.items.map((item: any) => {
-      // ======================
-      // 🟢 PRODUCT (MINIMAL)
-      // ======================
       const product = item.productId
         ? {
             _id: item.productId._id,
@@ -193,7 +204,6 @@ const getMyOrders = async (email: string) => {
           }
         : null;
 
-      // 🟢 SUPPLIER (NOW POPULATED ✅)
       const supplier = item.supplierId
         ? {
             _id: item.supplierId._id,
@@ -202,58 +212,33 @@ const getMyOrders = async (email: string) => {
             logo: item.supplierId.logo,
           }
         : null;
-      // ======================
-      // 🟢 VARIANT (ONLY IF EXISTS)
-      // ======================
-      let variant = null;
-      if (item.variantId && item.productId?.variants) {
-        const v = item.productId.variants.find(
-          (x: any) => x._id.toString() === item.variantId.toString()
-        );
 
-        if (v) {
-          variant = {
-            _id: v._id,
-            label: v.label,
-            price: v.price,
-            discount: v.discount || 0,
-            unit: v.unit,
-          };
-        }
-      }
+      const variant =
+        item.variantId && item.productId?.variants
+          ? (() => {
+              const v = item.productId.variants.find(
+                (x: any) => x._id.toString() === item.variantId.toString(),
+              );
+              return v
+                ? {
+                    _id: v._id,
+                    label: v.label,
+                    price: v.price,
+                    discount: v.discount || 0,
+                    unit: v.unit,
+                  }
+                : null;
+            })()
+          : null;
 
-      // ======================
-      // 🟢 WHOLESALE (ONLY SELECTED ITEM)
-      // ======================
-      let wholesale = null;
-      if (item.wholesaleId) {
-        const w = item.wholesaleId;
-        let selectedItem = null;
-
-        if (w.type === "case") {
-          selectedItem = w.caseItems?.find(
-            (ci: any) =>
-              ci.productId.toString() === item.productId._id.toString()
-          );
-        }
-
-        if (w.type === "pallet") {
-          selectedItem = w.palletItems?.[0];
-        }
-
-        wholesale = {
-          _id: w._id,
-          type: w.type,
-          label: w.label,
-          item: selectedItem
-            ? {
-                quantity: selectedItem.quantity,
-                price: selectedItem.price,
-                discount: selectedItem.discount || 0,
-              }
-            : null,
-        };
-      }
+      const wholesale =
+        item.wholesaleId && typeof item.wholesaleId === "object"
+          ? {
+              _id: item.wholesaleId._id,
+              type: (item.wholesaleId as any).type,
+              label: (item.wholesaleId as any).label,
+            }
+          : null;
 
       return {
         product,
@@ -266,7 +251,15 @@ const getMyOrders = async (email: string) => {
     }),
   }));
 
-  return formattedOrders;
+  return {
+    meta: {
+      page,
+      limit,
+      total,
+      totalPage: Math.ceil(total / limit),
+    },
+    data: formattedOrders,
+  };
 };
 
 const getAllOrdersForAdmin = async () => {
@@ -329,7 +322,7 @@ const getAllOrdersForAdmin = async () => {
       let variant = null;
       if (item.variantId && item.productId?.variants) {
         const v = item.productId.variants.find(
-          (x: any) => x._id.toString() === item.variantId.toString()
+          (x: any) => x._id.toString() === item.variantId.toString(),
         );
 
         if (v) {
@@ -354,7 +347,7 @@ const getAllOrdersForAdmin = async () => {
         if (w.type === "case") {
           selectedItem = w.caseItems?.find(
             (ci: any) =>
-              ci.productId.toString() === item.productId._id.toString()
+              ci.productId.toString() === item.productId._id.toString(),
           );
         }
 
@@ -500,7 +493,6 @@ const getOrderFormSupplier = async (email: string, query: any) => {
     data: formattedOrders,
   };
 };
-
 
 const cancelMyOrder = async (orderId: string, email: string) => {
   const user = await User.findOne({ email });
