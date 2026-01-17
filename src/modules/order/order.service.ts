@@ -390,34 +390,65 @@ const getAllOrdersForAdmin = async () => {
   return formattedOrders;
 };
 
-const getOrderFormSupplier = async (email: string) => {
+const getOrderFormSupplier = async (email: string, query: any) => {
+  // 1️⃣ USER CHECK
   const user = await User.findOne({ email });
   if (!user) {
     throw new AppError("Your account does not exist", StatusCodes.NOT_FOUND);
   }
 
-  // 2️⃣ supplier check
+  // 2️⃣ SUPPLIER CHECK
   const supplier = await JoinAsSupplier.findOne({ userId: user._id });
   if (!supplier) {
     throw new AppError(
       "You are not registered as a supplier",
-      StatusCodes.FORBIDDEN
+      StatusCodes.FORBIDDEN,
     );
   }
 
-  // 3️⃣ find orders
-  const orders = await Order.find({
+  // =========================
+  // 🟢 PAGINATION
+  // =========================
+  const page = Number(query.page) || 1;
+  const limit = Number(query.limit) || 10;
+  const skip = (page - 1) * limit;
+
+  // =========================
+  // 🟢 FILTER
+  // =========================
+  const filter: any = {
     "items.supplierId": supplier._id,
-  })
+  };
+
+  if (query.orderStatus) filter.orderStatus = query.orderStatus; // pending | delivered | cancelled
+  if (query.paymentStatus) filter.paymentStatus = query.paymentStatus; // paid | unpaid
+  if (query.paymentType) filter.paymentType = query.paymentType; // cod | online
+
+  // =========================
+  // 🟢 SORT
+  // =========================
+  const sort: any =
+    query.sort === "oldest" ? { createdAt: 1 } : { createdAt: -1 };
+
+  // =========================
+  // 🟢 QUERY
+  // =========================
+  const orders = await Order.find(filter)
     .populate("userId", "firstName lastName email")
     .populate("items.productId", "title slug images")
     .populate("items.supplierId", "shopName brandName logo")
     .populate("items.variantId", "label price discount unit")
-    .populate("items.wholesaleId", "type label")
-    .sort({ createdAt: -1 })
+    .populate("items.wholesaleId") // populate wholesale object
+    .sort(sort)
+    .skip(skip)
+    .limit(limit)
     .lean();
 
-  // 4️⃣ format response
+  const total = await Order.countDocuments(filter);
+
+  // =========================
+  // 🟢 FORMAT RESPONSE
+  // =========================
   const formattedOrders = orders.map((order) => ({
     _id: order._id,
     orderUniqueId: order.orderUniqueId,
@@ -434,15 +465,17 @@ const getOrderFormSupplier = async (email: string) => {
       .filter(
         (item) =>
           item.supplierId &&
-          item.supplierId._id.toString() === supplier._id.toString()
+          item.supplierId._id.toString() === supplier._id.toString(),
       )
       .map((item) => {
+        // ✅ Type Assertion for wholesaleId
+        const wholesaleObj = item.wholesaleId as any; // now TS treat as object
         const wholesale =
-          item.wholesaleId && typeof item.wholesaleId === "object"
+          wholesaleObj && typeof wholesaleObj === "object"
             ? {
-                _id: (item.wholesaleId as any)._id,
-                type: (item.wholesaleId as any).type,
-                label: (item.wholesaleId as any).label,
+                _id: wholesaleObj._id,
+                type: wholesaleObj.type,
+                label: wholesaleObj.label,
               }
             : null;
 
@@ -457,8 +490,17 @@ const getOrderFormSupplier = async (email: string) => {
       }),
   }));
 
-  return formattedOrders;
+  return {
+    meta: {
+      page,
+      limit,
+      total,
+      totalPage: Math.ceil(total / limit),
+    },
+    data: formattedOrders,
+  };
 };
+
 
 const cancelMyOrder = async (orderId: string, email: string) => {
   const user = await User.findOne({ email });

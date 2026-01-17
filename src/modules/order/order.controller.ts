@@ -40,15 +40,17 @@ const getAllOrdersForAdmin = catchAsync(async (req, res) => {
 
 const getOrderFormSupplier = catchAsync(async (req, res) => {
   const { email } = req.user;
-  const result = await orderService.getOrderFormSupplier(email);
+  const result = await orderService.getOrderFormSupplier(email, req.query);
 
   sendResponse(res, {
     statusCode: StatusCodes.OK,
     success: true,
     message: "Orders retrieved successfully",
-    data: result,
+    meta: result.meta,
+    data: result.data,
   });
 });
+
 
 const cancelMyOrder = catchAsync(async (req, res) => {
   const { email } = req.user;

@@ -985,10 +985,10 @@ const getRelatedProducts = async (productId: string) => {
   const categoryId = product.categoryId;
 
   const relatedProducts = await Product.find({
-    _id: { $ne: productId }, 
+    _id: { $ne: productId },
     categoryId: categoryId,
-    // status: "approved",           
-    // isAvailable: true,           
+    // status: "approved",
+    // isAvailable: true,
   })
     .populate({
       path: "categoryId",
@@ -1007,7 +1007,6 @@ const getRelatedProducts = async (productId: string) => {
 
   return relatedProducts;
 };
-
 
 const updateProductStatus = async (id: string, status: string) => {
   const isProductExist = await Product.findById(id);
