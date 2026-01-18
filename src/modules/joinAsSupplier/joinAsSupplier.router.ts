@@ -25,7 +25,7 @@ router.get(
 
 router.get(
   "/all-suppliers",
-  auth(USER_ROLE.ADMIN),
+  // auth(USER_ROLE.ADMIN),
   joinAsSupplierController.getAllSuppliers
 );
 

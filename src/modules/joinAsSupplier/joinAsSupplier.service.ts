@@ -12,6 +12,7 @@ import sendEmail from "../../utils/sendEmail";
 import sendTemplateMail from "../../utils/sendTamplateMail";
 import { createToken } from "../../utils/tokenGenerate";
 import verificationCodeTemplate from "../../utils/verificationCodeTemplate";
+import Product from "../product/product.model";
 import { IUser } from "../user/user.interface";
 import { User } from "../user/user.model";
 import { IJoinAsSupplier, IQuery } from "./joinAsSupplier.interface";
@@ -21,12 +22,12 @@ const joinAsSupplier = async (
   payload: IJoinAsSupplier,
   documents: Express.Multer.File[],
   logoFile?: Express.Multer.File,
-  currentUser?: IUser
+  currentUser?: IUser,
 ) => {
   if (!documents || documents.length === 0) {
     throw new AppError(
       "You must upload at least one document",
-      StatusCodes.BAD_REQUEST
+      StatusCodes.BAD_REQUEST,
     );
   }
 
@@ -51,7 +52,7 @@ const joinAsSupplier = async (
   if (logoFile) {
     const uploadedLogo = await uploadToCloudinary(
       logoFile.path,
-      "supplier-logos"
+      "supplier-logos",
     );
 
     logo = {
@@ -79,7 +80,7 @@ const joinAsSupplier = async (
       if (!dbUser) {
         throw new AppError(
           "Your account does not exist",
-          StatusCodes.NOT_FOUND
+          StatusCodes.NOT_FOUND,
         );
       }
 
@@ -91,7 +92,7 @@ const joinAsSupplier = async (
         if (existingShopName) {
           throw new AppError(
             "Shop name already exists. Please choose a different name.",
-            StatusCodes.BAD_REQUEST
+            StatusCodes.BAD_REQUEST,
           );
         }
       }
@@ -104,7 +105,7 @@ const joinAsSupplier = async (
         if (existingBrandName) {
           throw new AppError(
             "Brand name already exists. Please choose a different name.",
-            StatusCodes.BAD_REQUEST
+            StatusCodes.BAD_REQUEST,
           );
         }
       }
@@ -119,7 +120,7 @@ const joinAsSupplier = async (
           existingRequest.status === "approved"
             ? "You are already a supplier"
             : "Your supplier request is under review",
-          StatusCodes.BAD_REQUEST
+          StatusCodes.BAD_REQUEST,
         );
       }
 
@@ -135,7 +136,7 @@ const joinAsSupplier = async (
       if (existingUser) {
         throw new AppError(
           "Account already exists. Please login to continue.",
-          StatusCodes.BAD_REQUEST
+          StatusCodes.BAD_REQUEST,
         );
       }
 
@@ -158,7 +159,7 @@ const joinAsSupplier = async (
             otpExpires,
           },
         ],
-        { session }
+        { session },
       );
 
       user = createdUsers[0];
@@ -167,7 +168,7 @@ const joinAsSupplier = async (
       accessToken = createToken(
         { userId: user._id, email: user.email, role: user.role },
         config.JWT_SECRET as string,
-        config.JWT_EXPIRES_IN as string
+        config.JWT_EXPIRES_IN as string,
       );
     }
 
@@ -182,7 +183,7 @@ const joinAsSupplier = async (
     if (alreadySupplier) {
       throw new AppError(
         "You already have a supplier request",
-        StatusCodes.BAD_REQUEST
+        StatusCodes.BAD_REQUEST,
       );
     }
 
@@ -198,7 +199,7 @@ const joinAsSupplier = async (
     if (existingShopSlug) {
       throw new AppError(
         "Shop name already exists. Please choose a different name.",
-        StatusCodes.BAD_REQUEST
+        StatusCodes.BAD_REQUEST,
       );
     }
 
@@ -213,7 +214,7 @@ const joinAsSupplier = async (
       if (existingBrand) {
         throw new AppError(
           "Brand name already exists. Please choose a different name.",
-          StatusCodes.BAD_REQUEST
+          StatusCodes.BAD_REQUEST,
         );
       }
     }
@@ -229,7 +230,7 @@ const joinAsSupplier = async (
           status: "pending",
         },
       ],
-      { session }
+      { session },
     );
 
     await session.commitTransaction();
@@ -257,7 +258,7 @@ const joinAsSupplier = async (
 
     throw new AppError(
       (error as Error).message || "Failed to join as supplier",
-      StatusCodes.BAD_REQUEST
+      StatusCodes.BAD_REQUEST,
     );
   }
 };
@@ -292,7 +293,7 @@ const getAllSuppliers = async (query: IQuery) => {
     filter.status = query.status;
   }
 
-  // ✅ CreatedAt filter for 1day and 7day
+  // ✅ CreatedAt filter (1 day / 7 days)
   if (query.sort === "1day") {
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
@@ -305,7 +306,7 @@ const getAllSuppliers = async (query: IQuery) => {
     filter.createdAt = { $gte: sevenDaysAgo };
   }
 
-  // ✅ Search by shopName, user firstName, lastName
+  // ✅ Search
   const search = query.search
     ? {
         $or: [
@@ -319,12 +320,12 @@ const getAllSuppliers = async (query: IQuery) => {
   const combinedFilter = { ...filter, ...search };
 
   // ✅ Sorting
-  let sortOption: any = { createdAt: -1 }; // default newest first
+  let sortOption: any = { createdAt: -1 };
   if (query.sort === "atoz") {
     sortOption = { shopName: 1 };
   }
 
-  // ✅ Query
+  // ✅ Supplier list
   const suppliers = await JoinAsSupplier.find(combinedFilter)
     .populate("userId", "firstName lastName email phone image")
     .sort(sortOption)
@@ -332,6 +333,28 @@ const getAllSuppliers = async (query: IQuery) => {
     .limit(limit);
 
   const total = await JoinAsSupplier.countDocuments(combinedFilter);
+  const totalSupplier = await JoinAsSupplier.countDocuments();
+  const totalPending = await JoinAsSupplier.countDocuments({
+    status: "pending",
+  });
+  const totalActive = await JoinAsSupplier.countDocuments({
+    status: "approved",
+    isSuspended: false,
+  });
+
+  // ✅ Total products of all suppliers
+  const totalProductsAgg = await Product.aggregate([
+    {
+      $match: {
+        supplierId: { $exists: true },
+      },
+    },
+    {
+      $count: "total",
+    },
+  ]);
+
+  const totalProducts = totalProductsAgg[0]?.total || 0;
 
   return {
     data: suppliers,
@@ -341,13 +364,19 @@ const getAllSuppliers = async (query: IQuery) => {
       total,
       totalPage: Math.ceil(total / limit),
     },
+    analytics: {
+      totalSupplier,
+      totalPending,
+      totalActive,
+      totalProducts,
+    },
   };
 };
 
 const getSingleSupplier = async (id: string) => {
   const supplier = await JoinAsSupplier.findById(id).populate(
     "userId",
-    "firstName lastName email phone image"
+    "firstName lastName email phone image",
   );
   if (!supplier) {
     throw new AppError("Supplier not found", StatusCodes.NOT_FOUND);
@@ -365,7 +394,7 @@ const updateSupplierStatus = async (id: string, status: string) => {
   const result = await JoinAsSupplier.findByIdAndUpdate(
     id,
     { status },
-    { new: true }
+    { new: true },
   ).populate("userId", "firstName lastName email phone role");
 
   const user = result?.userId as any;
@@ -380,7 +409,7 @@ const updateSupplierStatus = async (id: string, status: string) => {
   const accessToken = createToken(
     JwtToken,
     config.JWT_SECRET as string,
-    config.JWT_EXPIRES_IN as string
+    config.JWT_EXPIRES_IN as string,
   );
 
   const resetPasswordURL = `${process.env.RESET_PASSWORD_URL}?token=${accessToken}`;
@@ -420,11 +449,6 @@ const updateSupplierStatus = async (id: string, status: string) => {
 //     throw new AppError("Supplier not found", StatusCodes.NOT_FOUND);
 //   }
 
-//   await JoinAsSupplier.findByIdAndUpdate(
-//     id,
-//     { rejectReason: reason },
-//     { new: true }
-//   );
 // };
 
 const suspendSupplier = async (id: string) => {
@@ -438,7 +462,7 @@ const suspendSupplier = async (id: string) => {
   await JoinAsSupplier.findByIdAndUpdate(
     id,
     { isSuspended: newStatus },
-    { new: true }
+    { new: true },
   );
 };
 
@@ -452,14 +476,14 @@ const deleteSupplier = async (id: string) => {
   if (supplier.status !== "rejected") {
     throw new AppError(
       "Only rejected suppliers can be deleted.",
-      StatusCodes.BAD_REQUEST
+      StatusCodes.BAD_REQUEST,
     );
   }
 
   if (!supplier.isSuspended) {
     throw new AppError(
       "Please suspend the supplier before deleting.",
-      StatusCodes.BAD_REQUEST
+      StatusCodes.BAD_REQUEST,
     );
   }
 
@@ -470,7 +494,7 @@ const updateSupplierInfo = async (
   id: string,
   data: any,
   documents: Express.Multer.File[],
-  logoFile?: Express.Multer.File
+  logoFile?: Express.Multer.File,
 ) => {
   const supplier = await JoinAsSupplier.findById(id);
 
@@ -481,14 +505,14 @@ const updateSupplierInfo = async (
   if (supplier.status !== "pending") {
     throw new AppError(
       "Only pending suppliers can be updated.",
-      StatusCodes.BAD_REQUEST
+      StatusCodes.BAD_REQUEST,
     );
   }
 
   if (supplier.isSuspended) {
     throw new AppError(
       "Admin suspended your account. Please contact admin.",
-      StatusCodes.BAD_REQUEST
+      StatusCodes.BAD_REQUEST,
     );
   }
 
@@ -503,7 +527,7 @@ const updateSupplierInfo = async (
     for (const file of documents) {
       const uploaded = await uploadToCloudinary(
         file.path,
-        "supplier-documents"
+        "supplier-documents",
       );
 
       newDocs.push({
@@ -527,7 +551,7 @@ const updateSupplierInfo = async (
 
     const uploadedLogo = await uploadToCloudinary(
       logoFile.path,
-      "supplier-logos"
+      "supplier-logos",
     );
 
     logo = {
@@ -584,7 +608,7 @@ const updateSupplierInfo = async (
       documentUrl: uploadedDocuments,
       logo,
     },
-    { new: true, runValidators: true }
+    { new: true, runValidators: true },
   ).populate("userId", "firstName lastName phone email");
 
   return updatedSupplier;

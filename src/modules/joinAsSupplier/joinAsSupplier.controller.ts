@@ -19,7 +19,7 @@ const joinAsSupplier = catchAsync(async (req, res) => {
     req.body,
     documents,
     logoFile,
-    currentUser
+    currentUser,
   );
 
   sendResponse(res, {
@@ -51,6 +51,7 @@ const getAllSuppliers = catchAsync(async (req, res) => {
     message: "All suppliers retrieved successfully",
     data: result.data,
     meta: result.meta,
+    analytics: result.analytics,
   });
 });
 
@@ -115,7 +116,7 @@ const updateSupplierInfo = catchAsync(async (req, res) => {
     id,
     req.body,
     documents,
-    logoFile as Express.Multer.File
+    logoFile as Express.Multer.File,
   );
 
   sendResponse(res, {
