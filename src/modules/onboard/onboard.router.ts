@@ -7,7 +7,7 @@ const router = Router();
 
 router.post(
   "/create",
-  auth(USER_ROLE.CUSTOMER),
+  auth(USER_ROLE.SUPPLIER),
   onboardController.createOnboard,
 );
 

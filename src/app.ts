@@ -5,18 +5,35 @@ import notFound from "./middleware/notFound";
 import { applySecurity } from "./middleware/security";
 import router from "./router";
 import corsModule from "cors";
+import { connectedAccountWebhookHandler } from "./modules/accountWebHook";
 
 const app: Application = express();
 
 // applySecurity(app);
 
-app.use(express.json());
+// Stripe webhook route FIRST — must be raw body
+// app.post('/api/v1/webhook/main', express.raw({ type: 'application/json' }), stripeWebhookHandler);
+app.post('/api/v1/webhook/connected', express.raw({ type: '*/*' }), connectedAccountWebhookHandler);
+
+// app.use(express.json());
 app.use(express.static("public"));
 
 app.use(corsModule());
 app.use(cookieParser());
 
 applySecurity(app);
+
+app.use((req, res, next) => {
+  if (
+    req.originalUrl.startsWith("/api/v1/admin") ||
+    req.originalUrl.startsWith("/api/v1/onboard")
+  ) {
+    // Skip JSON parsing, Stripe needs raw body
+    return next();
+  }
+  express.json({ limit: "10mb" })(req, res, next);
+});
+
 
 app.use("/api/v1", router);
 
