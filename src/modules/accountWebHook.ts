@@ -1,16 +1,16 @@
 // handlers/connectedAccountWebhookHandler.ts
 import { StatusCodes } from "http-status-codes";
 import Stripe from "stripe";
-import AppError from "../errors/AppError.js";
-import catchAsync from "../utils/catchAsync.js";
-import sendResponse from "../utils/sendResponse.js";
-import stripeAccountHandlers from "./onboard/onboardingHandler.js";
+import AppError from "../errors/AppError";
+import catchAsync from "../utils/catchAsync";
+import stripeAccountHandlers from "./onboard/onboardingHandler";
+import sendResponse from "../utils/sendResponse";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
 
 export const connectedAccountWebhookHandler = catchAsync(async (req, res) => {
   const sig = req.headers["stripe-signature"];
-  const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET_CONNECTED as string;
+  const endpointSecret = process.env.STRIPE_ONBOARDING_SECRET_KEY as string;
 
   if (!sig) {
     console.error("❌ Missing stripe-signature header");
