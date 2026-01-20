@@ -3,8 +3,8 @@ import { StatusCodes } from "http-status-codes";
 import Stripe from "stripe";
 import AppError from "../errors/AppError";
 import catchAsync from "../utils/catchAsync";
-import stripeAccountHandlers from "./onboard/onboardingHandler";
 import sendResponse from "../utils/sendResponse";
+import stripeAccountHandlers from "./onboard/onboardingHandler";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
 
@@ -13,7 +13,7 @@ export const connectedAccountWebhookHandler = catchAsync(async (req, res) => {
   const endpointSecret = process.env.STRIPE_ONBOARDING_SECRET_KEY as string;
 
   if (!sig) {
-    console.error("❌ Missing stripe-signature header");
+    // console.error("❌ Missing stripe-signature header");
     throw new AppError(
       "Missing stripe-signature header",
       StatusCodes.BAD_REQUEST,
@@ -23,15 +23,14 @@ export const connectedAccountWebhookHandler = catchAsync(async (req, res) => {
   let event: Stripe.Event;
 
   try {
-    // ⚠️ req.body must be raw Buffer for webhook verification
     event = stripe.webhooks.constructEvent(
       req.body as Buffer,
       sig,
       endpointSecret,
     );
-    console.log("✅ Webhook signature verified:", event.type);
+    // console.log("✅ Webhook signature verified:", event.type);
   } catch (err: any) {
-    console.error("❌ Webhook signature verification failed:", err.message);
+    // console.error("❌ Webhook signature verification failed:", err.message);
     throw new AppError(
       `Webhook Error: ${err.message}`,
       StatusCodes.BAD_REQUEST,
@@ -41,7 +40,7 @@ export const connectedAccountWebhookHandler = catchAsync(async (req, res) => {
   const { type, data, account: connectedAccountId } = event;
 
   try {
-    // 1️⃣ Connected account events (supplier onboarding / update)
+    // 1️ Connected account events (supplier onboarding / update)
     if (
       connectedAccountId &&
       stripeAccountHandlers[type as keyof typeof stripeAccountHandlers]
@@ -50,9 +49,9 @@ export const connectedAccountWebhookHandler = catchAsync(async (req, res) => {
         data.object,
         connectedAccountId,
       );
-      console.log(`[Stripe] Handled connected account event: ${type}`);
+      // console.log(`[Stripe] Handled connected account event: ${type}`);
     }
-    // 2️⃣ Platform payment events
+    // 2️ Platform payment events
     // else if (
     //   !connectedAccountId &&
     //   stripeWebhookHandlers[type as keyof typeof stripeWebhookHandlers]
@@ -63,21 +62,21 @@ export const connectedAccountWebhookHandler = catchAsync(async (req, res) => {
     //   console.log(`[Stripe] Handled platform event: ${type}`);
     // }
     else {
-      console.log(`[Stripe] No handler for event type: ${type}`);
+      // console.log(`[Stripe] No handler for event type: ${type}`);
       throw new AppError(
         `No handler for event type: ${type}`,
         StatusCodes.BAD_REQUEST,
       );
     }
 
-    // 3️⃣ Acknowledge receipt
+    // 3️ Acknowledge receipt
     sendResponse(res, {
       statusCode: 200,
       success: true,
       message: "Webhook event handled successfully",
     });
   } catch (error: any) {
-    console.error("❌ Error handling webhook event:", error);
+    // console.error("❌ Error handling webhook event:", error);
     throw new AppError(
       `Webhook Error: ${error.message}`,
       StatusCodes.BAD_REQUEST,

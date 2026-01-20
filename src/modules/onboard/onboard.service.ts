@@ -18,13 +18,6 @@ const createConnectedAccount = async (email: string) => {
     );
   }
 
-  //   if (user.stripeAccountId) {
-  //     throw new AppError(
-  //       "You already have a Stripe account",
-  //       StatusCodes.CONFLICT,
-  //     );
-  //   }
-
   // Create Stripe Connected Account
   const account = await stripe.accounts.create({
     type: "express",
