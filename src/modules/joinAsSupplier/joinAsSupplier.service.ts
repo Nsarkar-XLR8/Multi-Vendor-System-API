@@ -4,6 +4,7 @@ import mongoose from "mongoose";
 import config from "../../config";
 import AppError from "../../errors/AppError";
 import generateShopSlug from "../../middleware/generateShopSlug";
+import { createNotification } from "../../socket/notification.service";
 import {
   deleteFromCloudinary,
   uploadToCloudinary,
@@ -246,6 +247,16 @@ const joinAsSupplier = async (
         html: verificationCodeTemplate(otp as string),
       });
     }
+
+    const adminUsers = await User.findOne({ role: "admin" }).session(session);
+
+    // Notify admins about new supplier request
+    await createNotification({
+      to: new mongoose.Types.ObjectId(adminUsers!._id),
+      message: `New supplier request from ${user.firstName} ${user.lastName}`,
+      type: "supplier_request",
+      id: new mongoose.Types.ObjectId(supplierRequest[0]._id),
+    });
 
     return {
       // user,
