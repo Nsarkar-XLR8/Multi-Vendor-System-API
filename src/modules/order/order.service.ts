@@ -17,7 +17,22 @@ const createOrder = async (payload: any, email: string) => {
   try {
     // User check
     const user = await User.findOne({ email }).session(session);
-    if (!user) throw new AppError("User not found", StatusCodes.NOT_FOUND);
+    if (!user)
+      throw new AppError("Your account does not exist", StatusCodes.NOT_FOUND);
+
+    if (user.isVerified === false) {
+      throw new AppError(
+        "Please verify your account to place an order",
+        StatusCodes.FORBIDDEN,
+      );
+    }
+
+    if (user.isSuspended === true) {
+      throw new AppError(
+        "Account has been suspended.Contact support for help",
+        StatusCodes.FORBIDDEN,
+      );
+    }
 
     let items: any[] = [];
     let totalPrice = 0;
@@ -128,9 +143,9 @@ const createOrder = async (payload: any, email: string) => {
     );
 
     // !Clear cart if needed____________________________
-    // if (payload.orderType === "addToCart") {
-    //   await Cart.deleteMany({ userId: user._id }).session(session);
-    // }
+    if (payload.orderType === "addToCart") {
+      await Cart.deleteMany({ userId: user._id }).session(session);
+    }
 
     await session.commitTransaction();
     session.endSession();

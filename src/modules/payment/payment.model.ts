@@ -23,6 +23,9 @@ const paymentSchema = new Schema<IPayment>(
     customTransactionId: {
       type: String,
     },
+    stripePaymentIntentId: {
+      type: String,
+    },
     paymentMethod: {
       type: String,
     },
