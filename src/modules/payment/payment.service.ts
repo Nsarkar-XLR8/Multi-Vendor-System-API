@@ -9,6 +9,7 @@ import {
   updateOrderStatus,
 } from "../../lib/paymentIntent";
 import { validateOrderForPayment, validateUser } from "../../lib/validators";
+import JoinAsSupplier from "../joinAsSupplier/joinAsSupplier.model";
 import { User } from "../user/user.model";
 import Payment from "./payment.model";
 
@@ -42,8 +43,9 @@ const createPayment = async (payload: any, userEmail: string) => {
     });
   }
 
-  console.log("total amount is there",adminTotal + supplierTotal);
+  console.log("total amount is there", adminTotal + supplierTotal);
 
+  //! bug is here.
   const grandTotal = adminTotal + supplierTotal;
 
   let session;
@@ -193,46 +195,38 @@ const getAllPayments = async (query: any) => {
   return payments;
 };
 
+const ADMIN_COMMISSION_PERCENT = 25;
+
 const requestForPaymentTransfer = async (supplierEmail: string) => {
   const supplier = await User.findOne({ email: supplierEmail });
-  if (!supplier) throw new AppError("Supplier not found", 404);
+  if (!supplier) throw new AppError("Your account does not exist", 404);
 
-  //  Pending payments fetch
+  const isSupplier = await JoinAsSupplier.findOne({ userId: supplier._id });
+  if (!isSupplier) throw new AppError("You are not a supplier", 400);
+
   const payments = await Payment.find({
-    supplierId: supplier._id,
+    supplierId: isSupplier._id,
     status: "success",
     paymentTransferStatus: "pending",
   });
 
-  if (!payments.length)
+  if (!payments.length) {
     throw new AppError("No payments available for transfer", 400);
+  }
 
-  // Update each payment
   const updatedPayments = await Promise.all(
-    payments.map(async (payment) => {
-      const { total, adminCommission, supplierAmount } = calculateAmounts([
-        { unitPrice: payment.supplierCommission, quantity: 1 },
-      ]);
+    payments.map(async (payment: any) => {
+      const totalAmount = payment.amount;
+      const adminCommission = (totalAmount * ADMIN_COMMISSION_PERCENT) / 100;
+      const supplierCommission = totalAmount - adminCommission;
 
-      // payment.adminCommission = adminCommission;
-      // payment.supplierCommission = supplierAmount;
-      // payment.paymentTransferStatus = "requested";
-      // payment.paymentTransferDate = new Date();
-      // await payment.save();
-
-      await Payment.findOneAndUpdate(
-        { _id: payment._id },
-        {
-          $set: {
-            adminCommission,
-            supplierCommission: supplierAmount,
-            paymentTransferStatus: "requested",
-            paymentTransferDate: new Date(),
-          },
+      await Payment.findByIdAndUpdate(payment._id, {
+        $set: {
+          adminCommission,
+          supplierCommission,
+          paymentTransferStatus: "requested",
         },
-      );
-
-      return payment;
+      });
     }),
   );
 
