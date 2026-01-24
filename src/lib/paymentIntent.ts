@@ -59,7 +59,6 @@ export const handlePaymentSuccess = async (
 
   if (!payment) return null;
 
-
   await Payment.findByIdAndUpdate(payment._id, { status: "success" });
 
   // Update order status
@@ -72,31 +71,38 @@ export const updateOrderStatus = async (
   orderId: Types.ObjectId | string,
   userId: Types.ObjectId | string,
 ) => {
-  const payments = await Payment.find({ orderId, userId });
-  const allPaid = payments.every((p) => p.status === "success");
+  // Check if there are any payments not successful
+  const unpaidExists = await Payment.exists({
+    orderId,
+    userId,
+    status: { $ne: "success" },
+  });
 
-  if (allPaid) {
+  // If all payments are successful, mark order as paid
+  if (!unpaidExists) {
     await Order.findByIdAndUpdate(orderId, {
       paymentStatus: "paid",
     });
-    //! There are too many validations will be added.
+    console.log(`✅ Order ${orderId} marked as paid`);
   }
 };
 
 export const notifySupplierAndAdmin = async (payment: any) => {
-  const supplier = await User.findById(payment.supplierId);
-  const admin = await User.findOne({ role: "admin" });
+  try {
+    const [supplier, admin] = await Promise.all([
+      User.findById(payment.supplierId),
+      User.findOne({ role: "admin" }),
+    ]);
 
-  if (supplier) {
-    console.log(
-      `Supplier ${supplier.firstName} received payment: $${payment.amount}`,
-    );
-    // sendEmail(supplier.email, "Payment Received", ...)
-  }
+    if (supplier) {
+      console.log(`Supplier notified: ${supplier.email}`);
+    }
 
-  if (admin) {
-    console.log(`Admin received commission: $${payment.adminCommission}`);
-    // sendEmail(admin.email, "Commission Received", ...)
+    if (admin) {
+      console.log(`Admin commission: $${payment.adminCommission}`);
+    }
+  } catch (err) {
+    console.error("Notification error:", err);
   }
 };
 

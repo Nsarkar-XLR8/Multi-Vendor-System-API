@@ -4,9 +4,9 @@ import AppError from "../../errors/AppError";
 import {
   calculateAmounts,
   calculateTotal,
-  generateInvoice,
   notifySupplierAndAdmin,
   splitItemsByOwner,
+  updateOrderStatus,
 } from "../../lib/paymentIntent";
 import { validateOrderForPayment, validateUser } from "../../lib/validators";
 import Payment from "./payment.model";
@@ -98,23 +98,6 @@ const createPayment = async (payload: any, userEmail: string) => {
     throw new Error("Payment record creation failed");
   }
 
-  // for (const settlement of supplierSettlements) {
-  //   try {
-  //     await SupplierSettlement.create({
-  //       orderId: new mongoose.Types.ObjectId(order._id),
-  //       supplierId: new mongoose.Types.ObjectId(settlement.supplierId),
-  //       paymentId: paymentDoc._id,
-  //       totalAmount: settlement.total,
-  //       adminCommission: settlement.adminCommission,
-
-  //       payableAmount: settlement.payableToSupplier,
-  //       status: "pending",
-  //     });
-  //   } catch (err) {
-  //     console.error("SupplierSettlement creation error:", err);
-  //   }
-  // }
-
   return {
     checkoutUrl: session.url,
   };
@@ -140,105 +123,61 @@ const stripeWebhookHandler = async (sig: any, payload: Buffer) => {
     throw new AppError("Webhook verification failed", StatusCodes.BAD_REQUEST);
   }
 
-  //! Handle different event types
   switch (event.type) {
     case "checkout.session.completed": {
-      console.log("💳 Checkout session completed event received");
-
       const session = event.data.object as Stripe.Checkout.Session;
-      console.log("Session ID:", session.id);
-      console.log("Session metadata:", session.metadata);
 
-      // Payment lookup by stripeSessionId (safer for Klarna/other methods)
       const payment = await Payment.findOne({
         stripeCheckoutSessionId: session.id,
       });
 
-      if (payment) {
-        await Payment.findByIdAndUpdate(payment._id, { status: "success" });
-        console.log("💰 Payment record updated successfully");
+      if (!payment) {
+        console.log("⚠️ Payment not found for session:", session.id);
+        return { received: true };
+      }
 
-        await notifySupplierAndAdmin(payment);
-        await generateInvoice(payment.orderId);
+      // Idempotency: only process if not already successful
+      if (payment.status === "success") {
+        console.log("⚠️ Payment already processed");
+        return { received: true };
+      }
+
+      try {
+        // 1️⃣ Update payment and order atomically
+        await Promise.all([
+          Payment.findByIdAndUpdate(payment._id, { status: "success" }),
+          updateOrderStatus(payment.orderId, payment.userId),
+        ]);
+
+        console.log("💰 Payment record and order updated");
+
+        // 2️⃣ Fire-and-forget side effects
+        void notifySupplierAndAdmin(payment);
+        // void generateInvoice(payment.orderId);
 
         console.log("✅ Post-payment logic executed");
-      } else {
-        console.log("⚠️ Payment record not found for this session");
+      } catch (err) {
+        console.error("❌ Error processing payment:", err);
       }
+
       break;
     }
 
-    case "payment_intent.succeeded": {
-      console.log("💸 PaymentIntent succeeded");
-
-      const paymentIntent = event.data.object as Stripe.PaymentIntent;
+    case "checkout.session.expired": {
+      // Optional: mark payment as failed if session expires without completion
+      const session = event.data.object as Stripe.Checkout.Session;
 
       const payment = await Payment.findOne({
-        stripePaymentIntentId: paymentIntent.id,
+        stripeCheckoutSessionId: session.id,
       });
 
-      if (payment) {
-        await Payment.findByIdAndUpdate(payment._id, { status: "success" });
-        console.log("💰 Payment status updated to success for PaymentIntent");
+      if (payment && payment.status === "pending") {
+        await Payment.findByIdAndUpdate(payment._id, { status: "failed" });
 
-        await notifySupplierAndAdmin(payment);
-        await generateInvoice(payment.orderId);
-      } else {
-        console.log("⚠️ Payment record not found for this PaymentIntent");
+        console.log("❌ Payment session expired, marked as failed");
+        void notifySupplierAndAdmin(payment);
       }
-      break;
-    }
 
-    case "payment_intent.payment_failed": {
-      console.log("❌ PaymentIntent failed");
-
-      const paymentIntent = event.data.object as Stripe.PaymentIntent;
-      await Payment.findOneAndUpdate(
-        { stripePaymentIntentId: paymentIntent.id },
-        { status: "failed" },
-      );
-
-      console.log("⚠️ Payment status updated to failed for PaymentIntent");
-      break;
-    }
-
-    case "charge.succeeded": {
-      console.log("💳 Charge succeeded");
-
-      const charge = event.data.object as Stripe.Charge;
-      // Optionally update payment if linked via charge.payment_intent
-      const payment = await Payment.findOne({
-        stripePaymentIntentId: charge.payment_intent as string,
-      });
-
-      if (payment) {
-        await Payment.findByIdAndUpdate(payment._id, { status: "success" });
-        console.log("💰 Payment record updated for charge.succeeded");
-      }
-      break;
-    }
-
-    case "charge.failed": {
-      console.log("❌ Charge failed");
-
-      const charge = event.data.object as Stripe.Charge;
-      await Payment.findOneAndUpdate(
-        { stripePaymentIntentId: charge.payment_intent as string },
-        { status: "failed" },
-      );
-
-      console.log("⚠️ Payment status updated to failed for charge.failed");
-      break;
-    }
-
-    case "payout.paid": {
-      console.log("💵 Payout paid to supplier/admin");
-      // Optionally update SupplierSettlement status
-      break;
-    }
-
-    case "payout.failed": {
-      console.log("⚠️ Payout failed to supplier/admin");
       break;
     }
 
