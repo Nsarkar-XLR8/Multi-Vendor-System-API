@@ -42,7 +42,7 @@ const paymentSchema = new Schema<IPayment>(
     },
     paymentTransferStatus: {
       type: String,
-      enum: ["pending", "transferred"],
+      enum: ["requested", "pending", "transferred"],
       default: "pending",
     },
     customTransactionId: {
@@ -55,6 +55,12 @@ const paymentSchema = new Schema<IPayment>(
     stripePaymentIntentId: {
       type: String,
       index: true,
+    },
+    paymentDate: {
+      type: Date,
+    },
+    paymentTransferDate: {
+      type: Date,
     },
   },
   { timestamps: true, versionKey: false },

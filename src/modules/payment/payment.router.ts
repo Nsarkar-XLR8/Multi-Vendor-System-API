@@ -11,5 +11,13 @@ router.post(
   paymentController.createPayment,
 );
 
+router.get("/get-all", paymentController.getAllPayments);
+
+router.post(
+  "/request-transfer",
+  auth(USER_ROLE.CUSTOMER),
+  paymentController.requestForPaymentTransfer,
+);
+
 const paymentRouter = router;
 export default paymentRouter;
