@@ -71,7 +71,6 @@ export const updateOrderStatus = async (
   orderId: Types.ObjectId | string,
   userId: Types.ObjectId | string,
 ) => {
-  // Check if there are any payments not successful
   const unpaidExists = await Payment.exists({
     orderId,
     userId,
@@ -83,7 +82,6 @@ export const updateOrderStatus = async (
     await Order.findByIdAndUpdate(orderId, {
       paymentStatus: "paid",
     });
-    console.log(`✅ Order ${orderId} marked as paid`);
   }
 };
 

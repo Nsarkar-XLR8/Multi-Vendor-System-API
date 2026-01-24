@@ -77,7 +77,10 @@ const createPayment = async (payload: any, userEmail: string) => {
     });
   } catch (err) {
     console.error("Stripe checkout session creation error:", err);
-    throw new Error("Payment session creation failed");
+    throw new AppError(
+      "Payment session creation failed",
+      StatusCodes.INTERNAL_SERVER_ERROR,
+    );
   }
 
   try {
@@ -95,7 +98,10 @@ const createPayment = async (payload: any, userEmail: string) => {
     });
   } catch (err) {
     console.error("Payment creation error:", err);
-    throw new Error("Payment record creation failed");
+    throw new AppError(
+      "Payment record creation failed",
+      StatusCodes.INTERNAL_SERVER_ERROR,
+    );
   }
 
   return {
@@ -104,8 +110,6 @@ const createPayment = async (payload: any, userEmail: string) => {
 };
 
 const stripeWebhookHandler = async (sig: any, payload: Buffer) => {
-  console.log("🚀 Stripe webhook received!");
-
   let event: Stripe.Event;
 
   try {
@@ -114,12 +118,8 @@ const stripeWebhookHandler = async (sig: any, payload: Buffer) => {
       sig,
       process.env.STRIPE_WEBHOOK_ADMIN_SECRET as string,
     );
-    console.log("✅ Stripe webhook signature verified successfully");
   } catch (err: any) {
-    console.error(
-      "❌ Stripe Webhook signature verification failed:",
-      err.message,
-    );
+    console.error("Webhook verification failed:", err.message);
     throw new AppError("Webhook verification failed", StatusCodes.BAD_REQUEST);
   }
 
@@ -132,13 +132,11 @@ const stripeWebhookHandler = async (sig: any, payload: Buffer) => {
       });
 
       if (!payment) {
-        console.log("⚠️ Payment not found for session:", session.id);
         return { received: true };
       }
 
       // Idempotency: only process if not already successful
       if (payment.status === "success") {
-        console.log("⚠️ Payment already processed");
         return { received: true };
       }
 
@@ -149,15 +147,14 @@ const stripeWebhookHandler = async (sig: any, payload: Buffer) => {
           updateOrderStatus(payment.orderId, payment.userId),
         ]);
 
-        console.log("💰 Payment record and order updated");
-
-        // 2️⃣ Fire-and-forget side effects
         void notifySupplierAndAdmin(payment);
         // void generateInvoice(payment.orderId);
-
-        console.log("✅ Post-payment logic executed");
       } catch (err) {
-        console.error("❌ Error processing payment:", err);
+        console.error("❌ Error processing payment completion:", err);
+        throw new AppError(
+          "Payment processing failed",
+          StatusCodes.INTERNAL_SERVER_ERROR,
+        );
       }
 
       break;
@@ -174,7 +171,6 @@ const stripeWebhookHandler = async (sig: any, payload: Buffer) => {
       if (payment && payment.status === "pending") {
         await Payment.findByIdAndUpdate(payment._id, { status: "failed" });
 
-        console.log("❌ Payment session expired, marked as failed");
         void notifySupplierAndAdmin(payment);
       }
 
@@ -182,7 +178,7 @@ const stripeWebhookHandler = async (sig: any, payload: Buffer) => {
     }
 
     default:
-      console.log("ℹ️ Event type not handled:", event.type);
+      console.log("Event type not handled:", event.type);
   }
 
   return { received: true };

@@ -50,18 +50,7 @@ export const connectedAccountWebhookHandler = catchAsync(async (req, res) => {
         connectedAccountId,
       );
       // console.log(`[Stripe] Handled connected account event: ${type}`);
-    }
-    // 2️ Platform payment events
-    // else if (
-    //   !connectedAccountId &&
-    //   stripeWebhookHandlers[type as keyof typeof stripeWebhookHandlers]
-    // ) {
-    //   await stripeWebhookHandlers[type as keyof typeof stripeWebhookHandlers](
-    //     data.object,
-    //   );
-    //   console.log(`[Stripe] Handled platform event: ${type}`);
-    // }
-    else {
+    } else {
       // console.log(`[Stripe] No handler for event type: ${type}`);
       throw new AppError(
         `No handler for event type: ${type}`,
@@ -73,10 +62,9 @@ export const connectedAccountWebhookHandler = catchAsync(async (req, res) => {
     sendResponse(res, {
       statusCode: 200,
       success: true,
-      message: "Webhook event handled successfully",
+      message: "Your account webhook was handled successfully",
     });
   } catch (error: any) {
-    // console.error("❌ Error handling webhook event:", error);
     throw new AppError(
       `Webhook Error: ${error.message}`,
       StatusCodes.BAD_REQUEST,
