@@ -12,7 +12,9 @@ export interface IPayment {
   stripePaymentIntentId: string;
   stripeCheckoutSessionId: string;
   supplierCommission?: number;
-  paymentTransferStatus?: "pending" | "transferred";
+  paymentTransferStatus?: "requested" | "pending" | "transferred";
+  paymentDate: Date;
+  paymentTransferDate?: Date;
   createdAt: Date;
   updatedAt: Date;
 }

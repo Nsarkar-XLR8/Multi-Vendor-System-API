@@ -27,7 +27,28 @@ const stripeWebhookHandler = catchAsync(async (req, res) => {
   });
 });
 
-const getAllPayments = catchAsync(async (req, res) => {});
+const requestForPaymentTransfer = catchAsync(async (req, res) => {
+  const { email } = req.user;
+  const result = await paymentService.requestForPaymentTransfer(email);
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: "Payment transfer requested successfully",
+    data: result,
+  });
+});
+
+const getAllPayments = catchAsync(async (req, res) => {
+  const result = await paymentService.getAllPayments(req.query);
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: "Payments retrieved successfully",
+    data: result,
+  });
+});
 
 const getSinglePayment = catchAsync(async (req, res) => {});
 
@@ -36,6 +57,7 @@ const paymentController = {
   stripeWebhookHandler,
   getAllPayments,
   getSinglePayment,
+  requestForPaymentTransfer,
 };
 
 export default paymentController;

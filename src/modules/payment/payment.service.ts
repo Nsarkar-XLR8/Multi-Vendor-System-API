@@ -3,12 +3,11 @@ import Stripe from "stripe";
 import AppError from "../../errors/AppError";
 import {
   calculateAmounts,
-  calculateTotal,
   notifySupplierAndAdmin,
-  splitItemsByOwner,
   updateOrderStatus,
 } from "../../lib/paymentIntent";
 import { validateOrderForPayment, validateUser } from "../../lib/validators";
+import { User } from "../user/user.model";
 import Payment from "./payment.model";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
@@ -19,29 +18,10 @@ const createPayment = async (payload: any, userEmail: string) => {
   const user = await validateUser(userEmail);
   const order = await validateOrderForPayment(orderId, user._id);
 
-  const { supplierMap, adminItems } = splitItemsByOwner(order.items);
-
-  const adminTotal = calculateTotal(adminItems);
-  let supplierTotal = 0;
-
-  const supplierSettlements: any[] = [];
-
-  for (const supplierUserId of Object.keys(supplierMap)) {
-    const items = supplierMap[supplierUserId];
-    const { total, adminCommission } = calculateAmounts(items);
-
-    supplierTotal += total;
-
-    supplierSettlements.push({
-      supplierId: supplierUserId,
-      total,
-      adminCommission,
-      payableToSupplier: total - adminCommission,
-      status: "pending",
-    });
-  }
-
-  const grandTotal = adminTotal + supplierTotal;
+  const grandTotal = order.items.reduce(
+    (sum, item) => sum + item.unitPrice * item.quantity,
+    0,
+  );
 
   let session;
   try {
@@ -67,8 +47,6 @@ const createPayment = async (payload: any, userEmail: string) => {
       metadata: {
         orderId: order._id.toString(),
         userId: user._id.toString(),
-        adminTotal: adminTotal.toString(),
-        supplierTotal: supplierTotal.toString(),
         grandTotal: grandTotal.toString(),
       },
 
@@ -90,11 +68,10 @@ const createPayment = async (payload: any, userEmail: string) => {
       stripePaymentIntentId: session.payment_intent as string,
       stripeCheckoutSessionId: session.id,
       amount: grandTotal,
+      // supplierCommission: 0,
       status: "pending",
       paymentTransferStatus: "pending",
-      adminCommission: adminTotal,
-      supplierCommission: supplierTotal,
-      supplierId: supplierSettlements[0]?.supplierId || null,
+      paymentDate: new Date(),
     });
   } catch (err) {
     console.error("Payment creation error:", err);
@@ -184,9 +161,62 @@ const stripeWebhookHandler = async (sig: any, payload: Buffer) => {
   return { received: true };
 };
 
+const getAllPayments = async (query: any) => {
+  const payments = await Payment.find({});
+  return payments;
+};
+
+const requestForPaymentTransfer = async (supplierEmail: string) => {
+  const supplier = await User.findOne({ email: supplierEmail });
+  if (!supplier) throw new AppError("Supplier not found", 404);
+
+  //  Pending payments fetch
+  const payments = await Payment.find({
+    supplierId: supplier._id,
+    status: "success",
+    paymentTransferStatus: "pending",
+  });
+
+  if (!payments.length)
+    throw new AppError("No payments available for transfer", 400);
+
+  // Update each payment
+  const updatedPayments = await Promise.all(
+    payments.map(async (payment) => {
+      const { total, adminCommission, supplierAmount } = calculateAmounts([
+        { unitPrice: payment.supplierCommission, quantity: 1 },
+      ]);
+
+      // payment.adminCommission = adminCommission;
+      // payment.supplierCommission = supplierAmount;
+      // payment.paymentTransferStatus = "requested";
+      // payment.paymentTransferDate = new Date();
+      // await payment.save();
+
+      await Payment.findOneAndUpdate(
+        { _id: payment._id },
+        {
+          $set: {
+            adminCommission,
+            supplierCommission: supplierAmount,
+            paymentTransferStatus: "requested",
+            paymentTransferDate: new Date(),
+          },
+        },
+      );
+
+      return payment;
+    }),
+  );
+
+  return updatedPayments;
+};
+
 const paymentService = {
   createPayment,
   stripeWebhookHandler,
+  getAllPayments,
+  requestForPaymentTransfer,
 };
 
 export default paymentService;

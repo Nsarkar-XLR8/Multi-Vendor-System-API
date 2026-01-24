@@ -77,7 +77,6 @@ export const updateOrderStatus = async (
     status: { $ne: "success" },
   });
 
-  // If all payments are successful, mark order as paid
   if (!unpaidExists) {
     await Order.findByIdAndUpdate(orderId, {
       paymentStatus: "paid",
