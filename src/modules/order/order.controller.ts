@@ -35,13 +35,15 @@ const getMyOrders = catchAsync(async (req, res) => {
 });
 
 const getAllOrdersForAdmin = catchAsync(async (req, res) => {
-  const result = await orderService.getAllOrdersForAdmin();
+  const result = await orderService.getAllOrdersForAdmin(req.query);
 
   sendResponse(res, {
     statusCode: StatusCodes.OK,
     success: true,
     message: "Orders retrieved successfully",
-    data: result,
+    data: result.data,
+    meta: result.meta,
+    analytics: result.analytics,
   });
 });
 

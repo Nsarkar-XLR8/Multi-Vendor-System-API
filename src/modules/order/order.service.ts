@@ -277,8 +277,22 @@ const getMyOrders = async (
   };
 };
 
-const getAllOrdersForAdmin = async () => {
-  const orders = await Order.find()
+const getAllOrdersForAdmin = async (query: any) => {
+  const page = Number(query.page) || 1;
+  const limit = Number(query.limit) || 10;
+  const skip = (page - 1) * limit;
+
+  const filter: any = {};
+
+  if (query.orderStatus) {
+    filter.orderStatus = query.orderStatus;
+  }
+
+  if (query.paymentType) {
+    filter.paymentType = query.paymentType;
+  }
+
+  const orders = await Order.find(filter)
     .populate({
       path: "userId",
       select: "firstName lastName email",
@@ -292,13 +306,17 @@ const getAllOrdersForAdmin = async () => {
       select: "type label caseItems palletItems fastMovingItems",
     })
     .populate({
-      path: "items.supplierId", // ✅ FIXED
+      path: "items.supplierId",
       select: "shopName brandName logo email",
     })
     .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit)
     .lean();
 
-  const formattedOrders = orders.map((order) => ({
+  // Format orders
+
+  const formattedOrders = orders.map((order: any) => ({
     _id: order._id,
     orderUniqueId: order.orderUniqueId,
     userId: order.userId,
@@ -311,9 +329,6 @@ const getAllOrdersForAdmin = async () => {
     purchaseDate: order.purchaseDate,
 
     items: order.items.map((item: any) => {
-      // ======================
-      // 🟢 PRODUCT (MINIMAL)
-      // ======================
       const product = item.productId
         ? {
             _id: item.productId._id,
@@ -331,71 +346,61 @@ const getAllOrdersForAdmin = async () => {
             logo: item.supplierId.logo,
           }
         : null;
-      // ======================
-      // 🟢 VARIANT (ONLY IF EXISTS)
-      // ======================
-      let variant = null;
-      if (item.variantId && item.productId?.variants) {
-        const v = item.productId.variants.find(
-          (x: any) => x._id.toString() === item.variantId.toString(),
-        );
-
-        if (v) {
-          variant = {
-            _id: v._id,
-            label: v.label,
-            price: v.price,
-            discount: v.discount || 0,
-            unit: v.unit,
-          };
-        }
-      }
-
-      // ======================
-      // 🟢 WHOLESALE (ONLY SELECTED ITEM)
-      // ======================
-      let wholesale = null;
-      if (item.wholesaleId) {
-        const w = item.wholesaleId;
-        let selectedItem = null;
-
-        if (w.type === "case") {
-          selectedItem = w.caseItems?.find(
-            (ci: any) =>
-              ci.productId.toString() === item.productId._id.toString(),
-          );
-        }
-
-        if (w.type === "pallet") {
-          selectedItem = w.palletItems?.[0];
-        }
-
-        wholesale = {
-          _id: w._id,
-          type: w.type,
-          label: w.label,
-          item: selectedItem
-            ? {
-                quantity: selectedItem.quantity,
-                price: selectedItem.price,
-                discount: selectedItem.discount || 0,
-              }
-            : null,
-        };
-      }
 
       return {
         product,
         supplier,
-        variant,
-        wholesale,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
       };
     }),
   }));
 
-  return formattedOrders;
+  const total = await Order.countDocuments(filter);
+
+  const analytics = await Order.aggregate([
+    {
+      $group: {
+        _id: null,
+        totalOrder: { $sum: 1 },
+
+        totalPendingOrder: {
+          $sum: { $cond: [{ $eq: ["$orderStatus", "pending"] }, 1, 0] },
+        },
+
+        totalDeliveredOrder: {
+          $sum: { $cond: [{ $eq: ["$orderStatus", "delivered"] }, 1, 0] },
+        },
+
+        totalCancelledOrder: {
+          $sum: { $cond: [{ $eq: ["$orderStatus", "cancelled"] }, 1, 0] },
+        },
+
+        totalPaidOrder: {
+          $sum: { $cond: [{ $eq: ["$paymentStatus", "paid"] }, 1, 0] },
+        },
+      },
+    },
+  ]);
+
+  const summary = analytics[0] || {
+    totalOrder: 0,
+    totalPendingOrder: 0,
+    totalDeliveredOrder: 0,
+    totalCancelledOrder: 0,
+    totalPaidOrder: 0,
+  };
+
+  return {
+    data: formattedOrders,
+    meta: {
+      page,
+      limit,
+      total,
+      totalPage: Math.ceil(total / limit),
+    },
+    analytics: summary,
+  };
 };
 
 const getOrderFormSupplier = async (email: string, query: any) => {
