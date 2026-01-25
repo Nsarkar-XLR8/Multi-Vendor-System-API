@@ -7,6 +7,6 @@ export interface ISupplierSettlement {
   totalAmount: number;
   adminCommission: number;
   payableAmount: number;
-  status: "pending" | "transferred";
+  status: "requested" | "pending" | "transferred";
   transferredAt: Date;
 }
