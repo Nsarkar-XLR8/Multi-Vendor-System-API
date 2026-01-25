@@ -74,6 +74,17 @@ const getAdminId = catchAsync(async (req, res) => {
   });
 });
 
+const getSingleCustomer = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const result = await userService.getSingleCustomer(id);
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: "Customer retrieved successfully",
+    data: result,
+  });
+});
+
 const getMyProfile = catchAsync(async (req, res) => {
   const { email } = req.user;
 
@@ -103,6 +114,7 @@ const userController = {
   verifyEmail,
   resendOtpCode,
   getAllUsers,
+  getSingleCustomer,
   getMyProfile,
   updateUserProfile,
   getAdminId,

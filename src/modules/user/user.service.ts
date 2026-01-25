@@ -265,6 +265,13 @@ const getAdminId = async () => {
   return admin;
 };
 
+const getSingleCustomer = async (id: string) => {
+  const result = await User.findById(id).select(
+    "firstName lastName email role isSuspended image createdAt address phone location postalCode street",
+  );
+  return result;
+};
+
 const getMyProfile = async (email: string) => {
   const existingUser = await User.findOne({ email });
   if (!existingUser)
@@ -398,6 +405,7 @@ const userService = {
   updateUserProfile,
   getAdminId,
   registerDriver,
+  getSingleCustomer,
 };
 
 export default userService;

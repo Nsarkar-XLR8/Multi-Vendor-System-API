@@ -11,7 +11,7 @@ const router = Router();
 router.post(
   "/register",
   validateRequest(userValidation.userValidationSchema),
-  userController.registerUser
+  userController.registerUser,
 );
 
 router.post(
@@ -20,9 +20,9 @@ router.post(
     USER_ROLE.ADMIN,
     USER_ROLE.CUSTOMER,
     USER_ROLE.SUPPLIER,
-    USER_ROLE.DRIVER
+    USER_ROLE.DRIVER,
   ),
-  userController.verifyEmail
+  userController.verifyEmail,
 );
 
 router.post(
@@ -31,9 +31,9 @@ router.post(
     USER_ROLE.ADMIN,
     USER_ROLE.CUSTOMER,
     USER_ROLE.SUPPLIER,
-    USER_ROLE.DRIVER
+    USER_ROLE.DRIVER,
   ),
-  userController.resendOtpCode
+  userController.resendOtpCode,
 );
 
 router.get("/all-users", userController.getAllUsers);
@@ -43,9 +43,9 @@ router.get(
     USER_ROLE.ADMIN,
     USER_ROLE.CUSTOMER,
     USER_ROLE.SUPPLIER,
-    USER_ROLE.DRIVER
+    USER_ROLE.DRIVER,
   ),
-  userController.getMyProfile
+  userController.getMyProfile,
 );
 
 router.put(
@@ -55,9 +55,9 @@ router.put(
     USER_ROLE.ADMIN,
     USER_ROLE.CUSTOMER,
     USER_ROLE.SUPPLIER,
-    USER_ROLE.DRIVER
+    USER_ROLE.DRIVER,
   ),
-  userController.updateUserProfile
+  userController.updateUserProfile,
 );
 
 router.get(
@@ -66,10 +66,12 @@ router.get(
     USER_ROLE.ADMIN,
     USER_ROLE.CUSTOMER,
     USER_ROLE.SUPPLIER,
-    USER_ROLE.DRIVER
+    USER_ROLE.DRIVER,
   ),
-  userController.getAdminId
+  userController.getAdminId,
 );
+
+router.get("/:id", userController.getSingleCustomer);
 
 const userRouter = router;
 export default userRouter;
