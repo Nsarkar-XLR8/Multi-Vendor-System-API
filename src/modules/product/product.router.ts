@@ -10,13 +10,13 @@ router.post(
   "/create-product",
   upload.array("images", 5),
   auth(USER_ROLE.ADMIN, USER_ROLE.SUPPLIER),
-  productController.createProduct
+  productController.createProduct,
 );
 
 router.get(
   "/my-added",
   auth(USER_ROLE.ADMIN, USER_ROLE.SUPPLIER),
-  productController.getMyAddedProducts
+  productController.getMyAddedProducts,
 );
 
 router.get("/all", productController.getAllProducts);
@@ -24,7 +24,7 @@ router.get("/all", productController.getAllProducts);
 router.get(
   "/all-admin",
   // auth(USER_ROLE.ADMIN),
-  productController.getAllProductForAdmin
+  productController.getAllProductForAdmin,
 );
 
 router.get("/all-wholesale", productController.getAllWholeSaleProductForAdmin);
@@ -39,20 +39,20 @@ router.get("/related/:id", productController.getRelatedProducts);
 router.get(
   "/:id",
   //   auth(USER_ROLE.ADMIN, USER_ROLE.SUPPLIER),
-  productController.getSingleProduct
+  productController.getSingleProduct,
 );
 
 router.put(
   "/update-status/:id",
   auth(USER_ROLE.ADMIN),
-  productController.updateProductStatus
+  productController.updateProductStatus,
 );
 
 router.put(
   "/update-product/:id",
   upload.array("images", 5),
   auth(USER_ROLE.ADMIN, USER_ROLE.SUPPLIER),
-  productController.updateProduct
+  productController.updateProduct,
 );
 
 const productRouter = router;

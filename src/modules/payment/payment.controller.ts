@@ -47,8 +47,9 @@ const getAllPayments = catchAsync(async (req, res) => {
     statusCode: StatusCodes.OK,
     success: true,
     message: "Payments retrieved successfully",
-    data:result.data,
+    data: result.data,
     meta: result.meta,
+    analytics: result.summary,
   });
 });
 

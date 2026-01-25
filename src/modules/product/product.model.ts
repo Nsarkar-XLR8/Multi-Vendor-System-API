@@ -11,7 +11,7 @@ const ProductVariantSchema = new Schema<IProductVariant>(
     discount: { type: Number, default: 0 },
     discountPrice: { type: Number, default: 0 },
   }
-  //   { _id: false }
+
 );
 
 const SEOSchema = new Schema<ISEO>(

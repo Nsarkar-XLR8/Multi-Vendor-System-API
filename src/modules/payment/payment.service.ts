@@ -179,18 +179,22 @@ const getAllPayments = async (query: any) => {
   const limit = Number(query.limit) || 10;
   const skip = (page - 1) * limit;
 
-  // Filter object
+  /* ======================
+     1️⃣ Payment filter
+  ====================== */
   const filter: any = {};
 
   if (query.status) {
-    filter.status = query.status; // payment status filter
+    filter.status = query.status;
   }
 
-  // Query payments
-  let payments = await Payment.find(filter)
+  /* ======================
+     2️⃣ Fetch payments
+  ====================== */
+  let payments: any[] = await Payment.find(filter)
     .populate({
       path: "userId",
-      select: "name email",
+      select: "firstName lastName email",
     })
     .populate({
       path: "orderId",
@@ -201,28 +205,68 @@ const getAllPayments = async (query: any) => {
     .skip(skip)
     .limit(limit);
 
-  // Filter by orderStatus in JS if requested
+  // JS-level orderStatus filter (because populate)
   if (query.orderStatus) {
     payments = payments.filter(
       (p) => p.orderId?.orderStatus === query.orderStatus,
     );
   }
 
-  // Total count for pagination
+  /* ======================
+     3️⃣ Pagination count
+  ====================== */
   const total = await Payment.countDocuments(filter);
 
+  /* ======================
+     4️⃣ Admin summary
+  ====================== */
+  const summary = await Payment.aggregate([
+    {
+      $group: {
+        _id: "$status",
+        totalAmount: { $sum: "$amount" },
+        count: { $sum: 1 },
+      },
+    },
+  ]);
+
+  let totalRevenue = 0;
+  let completedPayment = 0;
+  let pendingPayment = 0;
+  let failedPayment = 0;
+
+  summary.forEach((item) => {
+    if (item._id === "success") {
+      totalRevenue = item.totalAmount;
+      completedPayment = item.count;
+    }
+    if (item._id === "pending") {
+      pendingPayment = item.count;
+    }
+    if (item._id === "failed") {
+      failedPayment = item.count;
+    }
+  });
+
+  /* ======================
+     5️⃣ Final response
+  ====================== */
   return {
     data: payments,
     meta: {
-      page, // current page
-      limit, // page size
-      total, // total documents
-      totalPage: Math.ceil(total / limit), // total pages
+      page,
+      limit,
+      total,
+      totalPage: Math.ceil(total / limit),
+    },
+    summary: {
+      totalRevenue,
+      completedPayment,
+      pendingPayment,
+      failedPayment,
     },
   };
 };
-
-
 
 const requestForPaymentTransfer = async (
   supplierEmail: string,
