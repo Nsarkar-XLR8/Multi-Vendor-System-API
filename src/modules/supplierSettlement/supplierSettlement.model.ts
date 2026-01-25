@@ -31,7 +31,7 @@ const supplierSettlementSchema = new Schema<ISupplierSettlement>(
     },
     status: {
       type: String,
-      enum: ["pending", "transferred"],
+      enum: ["requested", "pending", "transferred"],
       default: "pending",
     },
     transferredAt: Date,

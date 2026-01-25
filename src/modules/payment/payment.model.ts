@@ -23,14 +23,14 @@ const paymentSchema = new Schema<IPayment>(
       type: Number,
       required: true,
     },
-    adminCommission: {
-      type: Number,
-      default: 0,
-    },
-    supplierCommission: {
-      type: Number,
-      default: 0,
-    },
+    // adminCommission: {
+    //   type: Number,
+    //   default: 0,
+    // },
+    // supplierCommission: {
+    //   type: Number,
+    //   default: 0,
+    // },
     currency: {
       type: String,
       default: "cad",
@@ -40,11 +40,11 @@ const paymentSchema = new Schema<IPayment>(
       enum: ["pending", "success", "failed"],
       default: "pending",
     },
-    paymentTransferStatus: {
-      type: String,
-      enum: ["requested", "pending", "transferred"],
-      default: "pending",
-    },
+    // paymentTransferStatus: {
+    //   type: String,
+    //   enum: ["requested", "pending", "transferred"],
+    //   default: "pending",
+    // },
     customTransactionId: {
       type: String,
     },
@@ -59,9 +59,9 @@ const paymentSchema = new Schema<IPayment>(
     paymentDate: {
       type: Date,
     },
-    paymentTransferDate: {
-      type: Date,
-    },
+    // paymentTransferDate: {
+    //   type: Date,
+    // },
   },
   { timestamps: true, versionKey: false },
 );

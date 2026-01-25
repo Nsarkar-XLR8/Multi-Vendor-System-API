@@ -10,6 +10,7 @@ import {
 } from "../../lib/paymentIntent";
 import { validateOrderForPayment, validateUser } from "../../lib/validators";
 import JoinAsSupplier from "../joinAsSupplier/joinAsSupplier.model";
+import { SupplierSettlement } from "../supplierSettlement/supplierSettlement.model";
 import { User } from "../user/user.model";
 import Payment from "./payment.model";
 
@@ -39,76 +40,60 @@ const createPayment = async (payload: any, userEmail: string) => {
       total,
       adminCommission,
       payableToSupplier: total - adminCommission,
-      status: "pending",
     });
   }
 
-  console.log("total amount is there", adminTotal + supplierTotal);
-
-  //! bug is here.
   const grandTotal = adminTotal + supplierTotal;
 
-  let session;
-  try {
-    session = await stripe.checkout.sessions.create({
-      mode: "payment",
-      payment_method_types: ["klarna"],
-      billing_address_collection: "required",
-      customer_email: user.email,
-
-      line_items: [
-        {
-          price_data: {
-            currency: "usd",
-            product_data: {
-              name: `Order #${order.orderUniqueId}`,
-            },
-            unit_amount: Math.round(grandTotal * 100),
-          },
-          quantity: 1,
+  // 🔹 Stripe session
+  const session = await stripe.checkout.sessions.create({
+    mode: "payment",
+    payment_method_types: ["klarna"],
+    billing_address_collection: "required",
+    customer_email: user.email,
+    line_items: [
+      {
+        price_data: {
+          currency: "usd",
+          product_data: { name: `Order #${order.orderUniqueId}` },
+          unit_amount: Math.round(grandTotal * 100),
         },
-      ],
-
-      metadata: {
-        orderId: order._id.toString(),
-        userId: user._id.toString(),
-        adminTotal: adminTotal.toString(),
-        supplierTotal: supplierTotal.toString(),
-        grandTotal: grandTotal.toString(),
+        quantity: 1,
       },
+    ],
+    metadata: {
+      orderId: order._id.toString(),
+      userId: user._id.toString(),
+    },
+    success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: cancelUrl,
+  });
 
-      success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: cancelUrl,
-    });
-  } catch (err) {
-    console.error("Stripe checkout session creation error:", err);
-    throw new AppError(
-      "Payment session creation failed",
-      StatusCodes.INTERNAL_SERVER_ERROR,
-    );
-  }
+  // 🔹 Create Payment (NO supplierId here)
+  const payment = await Payment.create({
+    userId: user._id,
+    orderId: order._id,
+    stripeCheckoutSessionId: session.id,
+    stripePaymentIntentId: session.payment_intent as string,
+    amount: grandTotal,
+    status: "pending",
+    // paymentTransferStatus: "pending",
+    paymentDate: new Date(),
+  });
 
-  try {
-    await Payment.create({
-      userId: user._id,
-      orderId: order._id,
-      stripePaymentIntentId: session.payment_intent as string,
-      stripeCheckoutSessionId: session.id,
-      amount: grandTotal,
-      status: "pending",
-      paymentTransferStatus: "pending",
-      // adminCommission: adminTotal,
-      // supplierCommission: supplierTotal,
-      supplierId: supplierSettlements[0]?.supplierId || null,
-      paymentDate: new Date(),
-    });
-  } catch (err) {
-    console.error("Payment creation error:", err);
-    throw new AppError(
-      "Payment record creation failed",
-      StatusCodes.INTERNAL_SERVER_ERROR,
-    );
-  }
+  // 🔹 Create Supplier Settlements (MULTIPLE)
+  const settlementDocs = supplierSettlements.map((s) => ({
+    paymentId: payment._id,
+    orderId: order._id,
+    supplierId: s.supplierId,
+    totalAmount: s.total,
+    adminCommission: s.adminCommission,
+    payableAmount: s.payableToSupplier,
+    status: "pending",
+  }));
+
+
+  await SupplierSettlement.insertMany(settlementDocs);
 
   return {
     checkoutUrl: session.url,
@@ -212,7 +197,7 @@ const requestForPaymentTransfer = async (
     throw new AppError("You are not a supplier", 400);
   }
 
-  // 2️⃣ Find specific payment
+  // 2 Find specific payment
   const payment: any = await Payment.findOne({
     _id: paymentId,
     supplierId: isSupplier._id,
