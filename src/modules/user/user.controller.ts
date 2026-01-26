@@ -123,6 +123,18 @@ const getAllSuppliers = catchAsync(async (req, res) => {
   });
 });
 
+const getSingleSupplier = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const result = await userService.getSingleSupplier(id);
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: "Supplier retrieved successfully",
+    data: result,
+  });
+});
+
 const userController = {
   registerUser,
   verifyEmail,
@@ -133,6 +145,7 @@ const userController = {
   updateUserProfile,
   getAdminId,
   getAllSuppliers,
+  getSingleSupplier,
 };
 
 export default userController;
