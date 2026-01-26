@@ -38,10 +38,23 @@ const getRegionalSales = catchAsync(async (req, res) => {
   });
 });
 
+const getSupplierAnalytics = catchAsync(async (req, res) => {
+  const { email } = req.user;
+  const result = await dashboardService.getSupplierAnalytics(email);
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: "Dashboard analytics fetched successfully",
+    data: result,
+  });
+});
+
 const dashboardController = {
   adminDashboardAnalytics,
   getRevenueCharts,
   getRegionalSales,
+  getSupplierAnalytics,
 };
 
 export default dashboardController;

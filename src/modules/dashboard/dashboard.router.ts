@@ -23,5 +23,11 @@ router.get(
   dashboardController.getRegionalSales,
 );
 
+router.get(
+  "/supplier-analytics",
+  auth(USER_ROLE.SUPPLIER),
+  dashboardController.getSupplierAnalytics,
+);
+
 const dashboardRouter = router;
 export default dashboardRouter;

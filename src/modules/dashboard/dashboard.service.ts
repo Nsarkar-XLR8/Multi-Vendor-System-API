@@ -1,4 +1,10 @@
+/* eslint-disable prefer-const */
+import { StatusCodes } from "http-status-codes";
+import AppError from "../../errors/AppError";
+import JoinAsSupplier from "../joinAsSupplier/joinAsSupplier.model";
 import Order from "../order/order.model";
+import Product from "../product/product.model";
+import { SupplierSettlement } from "../supplierSettlement/supplierSettlement.model";
 import { User } from "../user/user.model";
 
 const adminDashboardAnalytics = async () => {
@@ -200,10 +206,59 @@ const getRegionalSales = async () => {
   return result[0]?.regions || [];
 };
 
+const getSupplierAnalytics = async (email: string) => {
+  // 1️⃣ Find the user
+  const user = await User.findOne({ email });
+  if (!user) {
+    throw new AppError("Your account does not exist", StatusCodes.NOT_FOUND);
+  }
+
+  // 2️⃣ Check if the user is a supplier
+  const supplier = await JoinAsSupplier.findOne({ userId: user._id });
+  if (!supplier) {
+    throw new AppError(
+      "You have not applied to be a supplier",
+      StatusCodes.NOT_FOUND,
+    );
+  }
+
+  const supplierId = supplier._id;
+
+  // 3️⃣ Get total revenue & pending revenue from SupplierSettlement
+  const settlements: any = await SupplierSettlement.find({ supplierId });
+
+  let totalRevenue = 0;
+  let pendingRevenue = 0;
+  let totalSales = settlements.length;
+
+  settlements.forEach((s: any) => {
+    if (s.status === "transferred" || s.status === "success") {
+      totalRevenue += s.payableAmount;
+    }
+    if (s.status === "pending") {
+      pendingRevenue += s.payableAmount;
+    }
+  });
+
+  // 4️⃣ Get total products
+  const totalProduct = await Product.countDocuments({ supplierId });
+
+  return {
+    supplierId,
+    shopName: supplier.shopName,
+    brandName: supplier.brandName,
+    totalRevenue,
+    pendingRevenue,
+    totalSales,
+    totalProduct,
+  };
+};
+
 const dashboardService = {
   adminDashboardAnalytics,
   getDashboardCharts,
   getRegionalSales,
+  getSupplierAnalytics,
 };
 
 export default dashboardService;
