@@ -491,6 +491,15 @@ const getAllSuppliers = async (query: any) => {
   };
 };
 
+const getSingleSupplier = async (id: string) => {
+  const supplier = await User.findById(id);
+  if (!supplier) {
+    throw new AppError("Supplier not found", StatusCodes.NOT_FOUND);
+  }
+
+  return supplier;
+};
+
 const userService = {
   registerUser,
   verifyEmail,
@@ -502,6 +511,7 @@ const userService = {
   registerDriver,
   getSingleCustomer,
   getAllSuppliers,
+  getSingleSupplier,
 };
 
 export default userService;
