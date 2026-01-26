@@ -11,6 +11,7 @@ import sendEmail from "../../utils/sendEmail";
 import { createToken } from "../../utils/tokenGenerate";
 import verificationCodeTemplate from "../../utils/verificationCodeTemplate";
 import JoinAsDriver from "../joinAsDriver/joinAsDriver.model";
+import JoinAsSupplier from "../joinAsSupplier/joinAsSupplier.model";
 import { IUser } from "./user.interface";
 import { User } from "./user.model";
 
@@ -255,7 +256,7 @@ const getAllUsers = async (query: any) => {
       total: result[0].analytics.totalCustomer,
       page,
       limit,
-      totalPage: result[0].analytics.totalCustomer,
+      totalPage: Math.ceil(result[0].analytics.totalCustomer / limit),
     },
   };
 };
@@ -497,7 +498,8 @@ const getSingleSupplier = async (id: string) => {
     throw new AppError("Supplier not found", StatusCodes.NOT_FOUND);
   }
 
-  return supplier;
+  const result = await JoinAsSupplier.findOne({ userId: id });
+  return result;
 };
 
 const userService = {

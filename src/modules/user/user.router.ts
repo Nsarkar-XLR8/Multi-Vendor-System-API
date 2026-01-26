@@ -74,6 +74,7 @@ router.get(
 );
 
 router.get("/:id", userController.getSingleCustomer);
+router.get("/supplier/:id", userController.getSingleSupplier);
 
 const userRouter = router;
 export default userRouter;

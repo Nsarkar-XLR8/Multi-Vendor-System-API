@@ -3,8 +3,10 @@ import authRouter from "../modules/auth/auth.router";
 import cartRouter from "../modules/cart/cart.router";
 import categoryRouter from "../modules/category/category.router";
 import contactRouter from "../modules/contact/contact.router";
+import dashboardRouter from "../modules/dashboard/dashboard.router";
 import joinAsDriverRouter from "../modules/joinAsDriver/joinAsDriver.router";
 import joinAsSupplierRouter from "../modules/joinAsSupplier/joinAsSupplier.router";
+import onboardRouter from "../modules/onboard/onboard.router";
 import orderRouter from "../modules/order/order.router";
 import paymentRouter from "../modules/payment/payment.router";
 import productRouter from "../modules/product/product.router";
@@ -13,7 +15,6 @@ import subscriptionRouter from "../modules/subscription/subscription.router";
 import userRouter from "../modules/user/user.router";
 import wholeSaleRouter from "../modules/wholeSale/wholeSale.router";
 import wishlistRouter from "../modules/wishlist/wishlist.router";
-import onboardRouter from "../modules/onboard/onboard.router";
 
 const router = Router();
 
@@ -81,7 +82,11 @@ const moduleRoutes = [
   {
     path: "/onboard",
     route: onboardRouter,
-  }
+  },
+  {
+    path: "/dashboard",
+    route: dashboardRouter,
+  },
 ];
 
 moduleRoutes.forEach((route) => router.use(route.path, route.route));
