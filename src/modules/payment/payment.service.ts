@@ -179,18 +179,12 @@ const getAllPayments = async (query: any) => {
   const limit = Number(query.limit) || 10;
   const skip = (page - 1) * limit;
 
-  /* ======================
-     1️⃣ Payment filter
-  ====================== */
   const filter: any = {};
 
   if (query.status) {
     filter.status = query.status;
   }
 
-  /* ======================
-     2️⃣ Fetch payments
-  ====================== */
   let payments: any[] = await Payment.find(filter)
     .populate({
       path: "userId",
@@ -212,14 +206,8 @@ const getAllPayments = async (query: any) => {
     );
   }
 
-  /* ======================
-     3️⃣ Pagination count
-  ====================== */
   const total = await Payment.countDocuments(filter);
 
-  /* ======================
-     4️⃣ Admin summary
-  ====================== */
   const summary = await Payment.aggregate([
     {
       $group: {
@@ -248,9 +236,6 @@ const getAllPayments = async (query: any) => {
     }
   });
 
-  /* ======================
-     5️⃣ Final response
-  ====================== */
   return {
     data: payments,
     meta: {

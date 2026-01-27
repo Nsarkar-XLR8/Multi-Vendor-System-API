@@ -40,7 +40,6 @@ const sendEmail = async ({
 
     await transporter.sendMail(mailOptions);
 
-
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message };
