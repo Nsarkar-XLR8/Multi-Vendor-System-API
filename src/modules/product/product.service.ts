@@ -210,7 +210,6 @@ const getMyAddedProducts = async (email: string, query: any) => {
   };
 };
 
-
 const getAllProducts = async (query: any) => {
   const {
     search,

@@ -123,7 +123,6 @@ const getTopRatedProducts = catchAsync(async (req, res) => {
 
 const getCaseDealsProducts = catchAsync(async (req, res) => {
   const result = await productService.getCaseDealsProducts();
-  console.log(result);
 
   sendResponse(res, {
     statusCode: StatusCodes.OK,
@@ -135,7 +134,6 @@ const getCaseDealsProducts = catchAsync(async (req, res) => {
 
 const getRelatedProducts = catchAsync(async (req, res) => {
   const { id } = req.params;
-
   const result = await productService.getRelatedProducts(id);
 
   sendResponse(res, {
