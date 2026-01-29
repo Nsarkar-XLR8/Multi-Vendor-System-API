@@ -10,7 +10,7 @@ const supplierSettlementSchema = new Schema<ISupplierSettlement>(
     },
     supplierId: {
       type: Schema.Types.ObjectId,
-      ref: "User",
+      ref: "JoinAsSupplier",
       required: true,
     },
     paymentId: {

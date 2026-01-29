@@ -17,7 +17,7 @@ import Payment from "./payment.model";
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
 const createPayment = async (payload: any, userEmail: string) => {
-  const { orderId, successUrl, cancelUrl } = payload;
+  const { orderId } = payload;
 
   const user = await validateUser(userEmail);
   const order = await validateOrderForPayment(orderId, user._id);
@@ -44,6 +44,7 @@ const createPayment = async (payload: any, userEmail: string) => {
   }
 
   const grandTotal = adminTotal + supplierTotal;
+  // console.log("FRONT_END_URL =>", process.env.FRONT_END_URL);
 
   // 🔹 Stripe session
   const session = await stripe.checkout.sessions.create({
@@ -65,8 +66,9 @@ const createPayment = async (payload: any, userEmail: string) => {
       orderId: order._id.toString(),
       userId: user._id.toString(),
     },
-    success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: cancelUrl,
+
+    success_url: `${process.env.FRONT_END_URL}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${process.env.FRONT_END_URL}/payment/cancel?session_id={CHECKOUT_SESSION_ID}`,
   });
 
   // 🔹 Create Payment (NO supplierId here)

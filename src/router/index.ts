@@ -6,6 +6,7 @@ import contactRouter from "../modules/contact/contact.router";
 import dashboardRouter from "../modules/dashboard/dashboard.router";
 import joinAsDriverRouter from "../modules/joinAsDriver/joinAsDriver.router";
 import joinAsSupplierRouter from "../modules/joinAsSupplier/joinAsSupplier.router";
+import notificationRouter from "../modules/notification/notification.router";
 import onboardRouter from "../modules/onboard/onboard.router";
 import orderRouter from "../modules/order/order.router";
 import paymentRouter from "../modules/payment/payment.router";
@@ -13,10 +14,10 @@ import productRouter from "../modules/product/product.router";
 import reportsRouter from "../modules/reports/reports.router";
 import reviewRouter from "../modules/review/review.router";
 import subscriptionRouter from "../modules/subscription/subscription.router";
+import supplierSettlementRouter from "../modules/supplierSettlement/supplierSettlement.router";
 import userRouter from "../modules/user/user.router";
 import wholeSaleRouter from "../modules/wholeSale/wholeSale.router";
 import wishlistRouter from "../modules/wishlist/wishlist.router";
-import notificationRouter from "../modules/notification/notification.router";
 
 const router = Router();
 
@@ -96,6 +97,10 @@ const moduleRoutes = [
   {
     path: "/notification",
     route: notificationRouter,
+  },
+  {
+    path: "/supplier-settlement",
+    route: supplierSettlementRouter,
   },
 ];
 

@@ -72,12 +72,8 @@ const joinAsSupplier = async (
     let accessToken: string | null = null;
     let tempPassword: string | null = null;
 
-    /** ===============================
-     * CASE 1️⃣ Logged-in user
-     ===============================*/
-
     if (currentUser) {
-      const dbUser = await User.findById(currentUser.id).session(session);
+      const dbUser = await User.findById(currentUser.userId).session(session);
       if (!dbUser) {
         throw new AppError(
           "Your account does not exist",
@@ -127,9 +123,6 @@ const joinAsSupplier = async (
 
       user = dbUser;
     } else {
-      /** ===============================
-     * CASE 2️⃣ Guest user
-     ===============================*/
       const existingUser = await User.findOne({
         $or: [{ email: payload.email }, { phone: payload.phone }],
       }).session(session);
