@@ -147,6 +147,17 @@ const suspendUser = catchAsync(async (req, res) => {
   });
 });
 
+const deletedSuspendedUser = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  await userService.deletedSuspendedUser(id);
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: "User deleted successfully",
+  });
+});
+
 const userController = {
   registerUser,
   verifyEmail,
@@ -159,6 +170,7 @@ const userController = {
   getAllSuppliers,
   getSingleSupplier,
   suspendUser,
+  deletedSuspendedUser,
 };
 
 export default userController;
