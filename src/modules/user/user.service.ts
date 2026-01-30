@@ -549,6 +549,21 @@ const suspendUser = async (id: string) => {
   return updatedUser;
 };
 
+const deletedSuspendedUser = async (id: string) => {
+  const user = await User.findById(id);
+  if (!user) {
+    throw new AppError("Account not found", StatusCodes.NOT_FOUND);
+  }
+
+  if (user.isSuspended === false) {
+    throw new AppError(
+      "You cannot delete active user",
+      StatusCodes.BAD_REQUEST,
+    );
+  }
+
+  await User.findByIdAndDelete(id);
+};
 
 const userService = {
   registerUser,
@@ -563,6 +578,7 @@ const userService = {
   getAllSuppliers,
   getSingleSupplier,
   suspendUser,
+  deletedSuspendedUser,
 };
 
 export default userService;
