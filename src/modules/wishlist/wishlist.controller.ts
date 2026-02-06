@@ -18,15 +18,23 @@ const addToWishlist = catchAsync(async (req, res) => {
 
 const getMyWishlist = catchAsync(async (req, res) => {
   const { email } = req.user;
-  const result = await wishlistService.getMyWishlist(email);
+  const { page = 1, limit = 10 } = req.query;
+
+  const result = await wishlistService.getMyWishlist(
+    email,
+    Number(page),
+    Number(limit),
+  );
 
   sendResponse(res, {
     statusCode: StatusCodes.OK,
     success: true,
     message: "Wishlist retrieved successfully",
-    data: result,
+    data: result.data,
+    meta: result.meta,
   });
 });
+
 
 const deletedFromWishlist = catchAsync(async (req, res) => {
   const { email } = req.user;
