@@ -19,20 +19,27 @@ const addToWishlist = async (email: string, productId: string) => {
   return result;
 };
 
-const getMyWishlist = async (email: string) => {
+const getMyWishlist = async (email: string, page = 1, limit = 10) => {
   const user = await User.findOne({ email });
   if (!user) {
     throw new AppError("Your account does not exist", StatusCodes.NOT_FOUND);
   }
 
-  const wishlists = await Wishlist.find({ userId: user._id })
-    .populate({
-      path: "productId",
-      populate: {
-        path: "wholesaleId",
-      },
-    })
-    .lean();
+  const skip = (page - 1) * limit;
+
+  const [wishlists, total] = await Promise.all([
+    Wishlist.find({ userId: user._id })
+      .populate({
+        path: "productId",
+        populate: {
+          path: "wholesaleId",
+        },
+      })
+      .skip(skip)
+      .limit(limit)
+      .lean(),
+    Wishlist.countDocuments({ userId: user._id }),
+  ]);
 
   const formattedProducts = wishlists.map((wishlist: any) => {
     const product = wishlist.productId;
@@ -79,7 +86,15 @@ const getMyWishlist = async (email: string) => {
     return { ...product, wholesaleId: [] };
   });
 
-  return formattedProducts;
+  return {
+    meta: {
+      page,
+      limit,
+      total,
+      totalPage: Math.ceil(total / limit),
+    },
+    data: formattedProducts,
+  };
 };
 
 const deletedFromWishlist = async (email: string, id: string) => {
