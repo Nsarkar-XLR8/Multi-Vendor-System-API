@@ -10,72 +10,97 @@ import {
 import { ICategory } from "./category.interface";
 import category from "./category.model";
 
+
 const createCategory = async (
   payload: ICategory,
-  productImg?: Express.Multer.File,
-  regionImg?: Express.Multer.File
+  files: Express.Multer.File[],
+  regionImg?: Express.Multer.File,
 ) => {
-  if (!productImg || !regionImg) {
-    throw new AppError(
-      "Both product image and region image are required",
-      StatusCodes.BAD_REQUEST
-    );
+  const regionName = payload.region.trim();
+
+  // 🔍 check if region exists
+  const existingRegion = await category.findOne({
+    region: { $regex: `^${regionName}$`, $options: "i" },
+  });
+
+  // Helper: map files by fieldname
+  const filesMap: { [key: string]: Express.Multer.File } = {};
+  files.forEach((f) => {
+    filesMap[f.fieldname] = f;
+  });
+
+  // Upload productType images
+  const categoriesWithImages = await Promise.all(
+    payload.categories.map(async (cat, index) => {
+      const fileKey = `categories[${index}][productTypeImage]`;
+      const productFile = filesMap[fileKey];
+      if (!productFile)
+        throw new AppError(
+          `ProductType image missing for ${cat.productType}`,
+          400,
+        );
+
+      const uploaded = await uploadToCloudinary(
+        productFile.path,
+        "product-type-img",
+      );
+
+      return {
+        productType: cat.productType,
+        productName: cat.productName,
+        productImage: {
+          url: uploaded.secure_url,
+          public_id: uploaded.public_id,
+        },
+      };
+    }),
+  );
+
+  // 🟢 CASE 1: Region exists → just push new productTypes
+  if (existingRegion) {
+    for (const cat of categoriesWithImages) {
+      const alreadyProductType = existingRegion.categories.find(
+        (c) => c.productType.toLowerCase() === cat.productType.toLowerCase(),
+      );
+      if (alreadyProductType) {
+        throw new AppError(
+          `Product type '${cat.productType}' already exists in ${regionName}`,
+          409,
+        );
+      }
+      existingRegion.categories.push(cat);
+    }
+    await existingRegion.save();
+    return existingRegion;
   }
 
-  const uploadedProductImage = await uploadToCloudinary(
-    productImg.path,
-    "product-img"
-  );
+  // 🟢 CASE 2: New region → region image required
+  if (!regionImg)
+    throw new AppError("Region image is required for new region", 400);
 
   const uploadedRegionImage = await uploadToCloudinary(
     regionImg.path,
-    "region-img"
+    "region-img",
   );
 
-  const isExistRegion = await category.findOne({
-    region: { $regex: `^${payload.region}$`, $options: "i" },
-  });
-
-  if (isExistRegion) {
-    throw new AppError(
-      `${payload.region} already added as a region. Please add a different region`,
-      StatusCodes.CONFLICT
-    );
-  }
-
-  const isExistProductType = await category.findOne({
-    productType: { $regex: `^${payload.productType}$`, $options: "i" },
-    region: { $regex: `^${payload.region}$`, $options: "i" },
-  });
-
-  if (isExistProductType) {
-    throw new AppError(
-      "You already added this product type in this region",
-      StatusCodes.CONFLICT
-    );
-  }
-
-  const slug = generateShopSlug(payload.region || payload.productType || "");
-  const regionInput = payload.region?.trim().toLowerCase() || "";
-  const mappedRegion: string = regionMap[regionInput] || payload.region || "";
+  const slug = generateShopSlug(regionName);
+  const regionInput = regionName.toLowerCase();
+  const mappedRegion = regionMap[regionInput] || regionName;
 
   const countryList = countries
     .filter(
       (c) =>
-        (c.subregion &&
-          c.subregion.toLowerCase() === mappedRegion.toLowerCase()) ||
-        (c.region && c.region.toLowerCase() === mappedRegion.toLowerCase())
+        c.subregion?.toLowerCase() === mappedRegion.toLowerCase() ||
+        c.region?.toLowerCase() === mappedRegion.toLowerCase(),
     )
     .map((c) => c.name.common);
 
+  // Create new region with productTypes
   const result = await category.create({
-    ...payload,
+    region: regionName,
     slug,
+    categories: categoriesWithImages,
     country: countryList,
-    productImage: {
-      url: uploadedProductImage.secure_url,
-      public_id: uploadedProductImage.public_id,
-    },
     regionImage: {
       url: uploadedRegionImage.secure_url,
       public_id: uploadedRegionImage.public_id,
@@ -85,12 +110,29 @@ const createCategory = async (
   return result;
 };
 
-const getCategories = async (page: number, limit: number) => {
+
+interface IGetCategoriesParams {
+  page: number;
+  limit: number;
+  region?: string;
+}
+
+const getCategories = async ({ page, limit, region }: IGetCategoriesParams) => {
   const skip = (page - 1) * limit;
 
+  const filter: Record<string, any> = {};
+
+  // ✅ region filter
+  if (region) {
+    filter.region = region;
+    // OR (case-insensitive):
+    // filter.region = { $regex: new RegExp(`^${region}$`, "i") };
+  }
+
   const [data, total] = await Promise.all([
-    category.find().skip(skip).limit(limit).sort({ createdAt: -1 }),
-    category.countDocuments(),
+    category.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit),
+
+    category.countDocuments(filter),
   ]);
 
   const totalPage = Math.ceil(total / limit);
@@ -109,98 +151,99 @@ const getCategories = async (page: number, limit: number) => {
 const updateCategory = async (
   id: string,
   payload: ICategory,
-  productImg?: Express.Multer.File,
-  regionImg?: Express.Multer.File
+  files: Express.Multer.File[],
 ) => {
   const isCategory = await category.findById(id);
   if (!isCategory) {
-    throw new AppError("Category not found", StatusCodes.NOT_FOUND);
+    throw new AppError("Category not found", 404);
   }
 
-  if (productImg) {
-    if (isCategory.productImage?.public_id) {
-      await deleteFromCloudinary(isCategory.productImage.public_id);
-    }
+  // 🔹 map files by fieldname
+  const filesMap: { [key: string]: Express.Multer.File } = {};
+  files.forEach((f) => {
+    filesMap[f.fieldname] = f;
+  });
 
-    const uploaded = await uploadToCloudinary(productImg.path, "product-img");
-    payload.productImage = {
-      url: uploaded.secure_url,
-      public_id: uploaded.public_id,
-    };
-  }
-
-  if (regionImg) {
+  // 🔹 Update regionImage if provided
+  if (filesMap["regionImage"]) {
     if (isCategory.regionImage?.public_id) {
       await deleteFromCloudinary(isCategory.regionImage.public_id);
     }
-
-    const uploaded = await uploadToCloudinary(regionImg.path, "region-img");
+    const uploadedRegion = await uploadToCloudinary(
+      filesMap["regionImage"].path,
+      "region-img",
+    );
     payload.regionImage = {
-      url: uploaded.secure_url,
-      public_id: uploaded.public_id,
+      url: uploadedRegion.secure_url,
+      public_id: uploadedRegion.public_id,
     };
   }
 
+  // 🔹 Update existing categories or add new categories
+  if (payload.categories && payload.categories.length > 0) {
+    for (let i = 0; i < payload.categories.length; i++) {
+      const cat = payload.categories[i];
+      const fileKey = `categories[${i}][productTypeImage]`;
+      const productFile = filesMap[fileKey];
+
+      // Upload image if file provided
+      if (productFile) {
+        const uploaded = await uploadToCloudinary(
+          productFile.path,
+          "product-type-img",
+        );
+        cat.productImage = {
+          url: uploaded.secure_url,
+          public_id: uploaded.public_id,
+        };
+      } else if (!cat.productImage) {
+        throw new AppError(`Product image missing for ${cat.productType}`, 400);
+      }
+
+      // Check if productType already exists in this region
+      const existProductType = isCategory.categories.find(
+        (c) => c.productType.toLowerCase() === cat.productType.toLowerCase(),
+      );
+
+      if (existProductType) {
+        // Update existing productType
+        existProductType.productName = cat.productName;
+        if (cat.productImage) existProductType.productImage = cat.productImage;
+      } else {
+        // Add new productType
+        isCategory.categories.push(cat);
+      }
+    }
+  }
+
+  // 🔹 Update region name and slug
   if (payload.region) {
     const isExistRegion = await category.findOne({
       _id: { $ne: id },
       region: { $regex: `^${payload.region}$`, $options: "i" },
     });
-
     if (isExistRegion) {
-      throw new AppError(
-        `${payload.region} already added as a region`,
-        StatusCodes.CONFLICT
-      );
+      throw new AppError(`${payload.region} already exists`, 409);
     }
-  }
+    isCategory.region = payload.region;
+    isCategory.slug = generateShopSlug(payload.region);
 
-  if (payload.productType && payload.region) {
-    const isExistProductType = await category.findOne({
-      _id: { $ne: id },
-      productType: {
-        $regex: `^${payload.productType}$`,
-        $options: "i",
-      },
-      region: {
-        $regex: `^${payload.region}$`,
-        $options: "i",
-      },
-    });
-
-    if (isExistProductType) {
-      throw new AppError(
-        "You already added this product type in this region",
-        StatusCodes.CONFLICT
-      );
-    }
-  }
-
-  if (payload.region || payload.productType) {
-    payload.slug = generateShopSlug(
-      payload.region || payload.productType || ""
-    );
-  }
-
-  if (payload.region) {
+    // Update countries
     const regionInput = payload.region.trim().toLowerCase();
     const mappedRegion = regionMap[regionInput] || payload.region;
-
-    payload.country = countries
+    isCategory.country = countries
       .filter(
         (c) =>
           c.subregion?.toLowerCase() === mappedRegion.toLowerCase() ||
-          c.region?.toLowerCase() === mappedRegion.toLowerCase()
+          c.region?.toLowerCase() === mappedRegion.toLowerCase(),
       )
       .map((c) => c.name.common);
   }
 
-  const result = await category.findByIdAndUpdate(id, payload, {
-    new: true,
-    runValidators: true,
-  });
+  // 🔹 Save updated category
+  await isCategory.save();
 
-  return result;
+  return isCategory;
 };
 
 const categoryService = {
