@@ -115,27 +115,56 @@ interface IGetCategoriesParams {
   page: number;
   limit: number;
   region?: string;
+  productType?: string;
 }
 
-const getCategories = async ({ page, limit, region }: IGetCategoriesParams) => {
+const getCategories = async ({
+  page,
+  limit,
+  region,
+  productType,
+}: IGetCategoriesParams) => {
   const skip = (page - 1) * limit;
-
   const filter: Record<string, any> = {};
 
-  // ✅ region filter
   if (region) {
-    filter.region = region;
-    // OR (case-insensitive):
-    // filter.region = { $regex: new RegExp(`^${region}$`, "i") };
+    filter.region = { $regex: new RegExp(`^${region}$`, "i") };
   }
 
   const [data, total] = await Promise.all([
     category.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit),
-
     category.countDocuments(filter),
   ]);
 
   const totalPage = Math.ceil(total / limit);
+
+  let allProductTypes: string[] = [];
+  let allProductNames: string[] = [];
+
+  // ✅ If region filter exists
+  if (region && data.length > 0) {
+    const regionData = data[0];
+
+    if (productType) {
+      // 🎯 Filter by specific productType
+      const foundCategory = regionData.categories.find(
+        (c: any) => c.productType.toLowerCase() === productType.toLowerCase(),
+      );
+
+      if (foundCategory) {
+        allProductTypes = [foundCategory.productType];
+        allProductNames = foundCategory.productName;
+      }
+    } else {
+      // 🎯 Only region filter → return all productTypes + all productNames
+
+      allProductTypes = regionData.categories.map((c: any) => c.productType);
+
+      allProductNames = regionData.categories.flatMap(
+        (c: any) => c.productName,
+      );
+    }
+  }
 
   return {
     data,
@@ -145,8 +174,13 @@ const getCategories = async ({ page, limit, region }: IGetCategoriesParams) => {
       total,
       totalPage,
     },
+    filters: {
+      productTypes: allProductTypes,
+      productNames: allProductNames,
+    },
   };
 };
+
 
 const updateCategory = async (
   id: string,
