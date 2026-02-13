@@ -3,14 +3,12 @@ export interface IImage {
   url: string;
 }
 
-// product type inside a region
 export interface IProductCategory {
   productType: string;
   productName: string[];
   productImage: IImage;
 }
 
-// main category interface
 export interface ICategory {
   region: string;
   slug: string;
