@@ -5,7 +5,7 @@ import categoryService from "./category.service";
 
 const createCategory = catchAsync(async (req, res) => {
   const files = req.files as Express.Multer.File[]; // all uploaded files
-  const payload = req.body as ICategory; // your categories + region data
+  const payload = req.body as ICategory;
 
   // region image
   const regionImg = files.find((f) => f.fieldname === "regionImage");
@@ -23,7 +23,6 @@ const createCategory = catchAsync(async (req, res) => {
     data: result,
   });
 });
-
 
 const getCategories = catchAsync(async (req, res) => {
   const page = Number(req.query.page) || 1;
@@ -49,11 +48,9 @@ const getCategories = catchAsync(async (req, res) => {
   });
 });
 
-
-
 const updateCategory = catchAsync(async (req, res) => {
   const { id } = req.params;
-  const files = req.files as Express.Multer.File[]; // use any() multer
+  const files = req.files as Express.Multer.File[];
 
   const result = await categoryService.updateCategory(id, req.body, files);
 
@@ -64,7 +61,6 @@ const updateCategory = catchAsync(async (req, res) => {
     data: result,
   });
 });
-
 
 const categoryController = {
   createCategory,

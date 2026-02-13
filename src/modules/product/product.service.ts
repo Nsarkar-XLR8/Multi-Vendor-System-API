@@ -84,13 +84,9 @@ const createProduct = async (payload: IProduct, files: any, email: string) => {
   // 🔹 SLUG
   const slug = generateShopSlug(payload.title);
 
-  // 🔹 VARIANT PROCESSING
-  let variants = payload.variants || [];
-
-  // discountPrice calculate
-  variants = variants.map((v) => {
+  // 5️⃣ VARIANT PROCESSING
+  let variants = (payload.variants || []).map((v) => {
     const discount = v.discount ?? 0;
-
     return {
       ...v,
       discount,
@@ -108,23 +104,19 @@ const createProduct = async (payload: IProduct, files: any, email: string) => {
   let showOnlyDiscount = 0;
 
   if (variants.length > 0) {
-    const lowestVariant = variants[0];
+    // 🔹 যদি কোনো variant-এ discount থাকে
+    const discountedVariant = variants.find((v) => v.discount! > 0);
 
-    // 1️⃣ lowest price
-    priceFrom = lowestVariant.price;
-
-    // 2️⃣ discountPriceFrom → only if lowest has discount
-    if (lowestVariant.discount! > 0) {
-      discountPriceFrom = lowestVariant.discountPrice ?? 0;
-      showOnlyDiscount = lowestVariant.discount ?? 0;
+    if (discountedVariant) {
+      priceFrom = discountedVariant.price; // মূল দাম
+      discountPriceFrom = discountedVariant.discountPrice!; // discount price
+      showOnlyDiscount = discountedVariant.discount!; // discount %
     } else {
+      // 🔹 কোনো discount না থাকলে lowest price নাও
+      const lowestVariant = variants[0];
+      priceFrom = lowestVariant.price;
       discountPriceFrom = 0;
-
-      // 3️⃣ showOnlyDiscount → other variant discount
-      const variantWithDiscount = variants.find(
-        (v) => v.discount && v.discount > 0,
-      );
-      showOnlyDiscount = variantWithDiscount?.discount ?? 0;
+      showOnlyDiscount = 0;
     }
   }
 
@@ -162,7 +154,7 @@ const createProduct = async (payload: IProduct, files: any, email: string) => {
   });
 
   return result;
-};
+};;
 
 const getMyAddedProducts = async (email: string, query: any) => {
   const user = await User.findOne({ email });
