@@ -29,12 +29,15 @@ const getCategories = catchAsync(async (req, res) => {
   const page = Number(req.query.page) || 1;
   const limit = Number(req.query.limit) || 10;
   const region = req.query.region as string | undefined;
+  const productType = req.query.productType as string | undefined;
 
   const result = await categoryService.getCategories({
     page,
     limit,
     region,
+    productType,
   });
+  console.log(result);
 
   sendResponse(res, {
     statusCode: 200,
@@ -42,8 +45,10 @@ const getCategories = catchAsync(async (req, res) => {
     message: "All categories retrieved successfully",
     data: result.data,
     meta: result.meta,
+    filters: result.filters,
   });
 });
+
 
 
 const updateCategory = catchAsync(async (req, res) => {
