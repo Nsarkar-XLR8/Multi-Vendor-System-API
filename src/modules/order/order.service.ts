@@ -172,7 +172,7 @@ const getMyOrders = async (
   const filter: any = { userId: user._id };
 
   if (query.orderStatus) {
-    filter.orderStatus = query.orderStatus; // pending | delivered | cancelled
+    filter.orderStatus = query.orderStatus;
   }
 
   const orders = await Order.find(filter)

@@ -1,4 +1,3 @@
-import { StatusCodes } from "http-status-codes";
 import countries from "world-countries";
 import AppError from "../../errors/AppError";
 import { regionMap } from "../../lib/globalType";
@@ -9,7 +8,6 @@ import {
 } from "../../utils/cloudinary";
 import { ICategory } from "./category.interface";
 import category from "./category.model";
-
 
 const createCategory = async (
   payload: ICategory,
@@ -110,7 +108,6 @@ const createCategory = async (
   return result;
 };
 
-
 interface IGetCategoriesParams {
   page: number;
   limit: number;
@@ -180,7 +177,6 @@ const getCategories = async ({
     },
   };
 };
-
 
 const updateCategory = async (
   id: string,
@@ -280,10 +276,16 @@ const updateCategory = async (
   return isCategory;
 };
 
+const getCategoryRegion = async () => {
+  const regions = await category.distinct("region");
+  return regions;
+};
+
 const categoryService = {
   createCategory,
   getCategories,
   updateCategory,
+  getCategoryRegion,
 };
 
 export default categoryService;

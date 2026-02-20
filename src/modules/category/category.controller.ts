@@ -62,10 +62,27 @@ const updateCategory = catchAsync(async (req, res) => {
   });
 });
 
+
+const getCategoryRegion = catchAsync(async (req, res) => {
+  const result = await categoryService.getCategoryRegion();
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "All category regions retrieved successfully",
+    data: result,
+  });
+});
+
+
+
+
+
 const categoryController = {
   createCategory,
   getCategories,
   updateCategory,
+  getCategoryRegion,
 };
 
 export default categoryController;
