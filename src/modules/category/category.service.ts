@@ -1,6 +1,6 @@
 import countries from "world-countries";
 import AppError from "../../errors/AppError";
-import { regionMap } from "../../lib/globalType";
+import { regionMap, sanitizeRegion } from "../../lib/globalType";
 import generateShopSlug from "../../middleware/generateShopSlug";
 import {
   deleteFromCloudinary,
@@ -8,6 +8,117 @@ import {
 } from "../../utils/cloudinary";
 import { ICategory } from "./category.interface";
 import category from "./category.model";
+
+// const createCategory = async (
+//   payload: ICategory,
+//   files: Express.Multer.File[],
+//   regionImg?: Express.Multer.File,
+// ) => {
+//   const regionName = payload.region.trim();
+
+//   // 🔍 check if region exists
+//   const existingRegion = await category.findOne({
+//     region: { $regex: `^${regionName}$`, $options: "i" },
+//   });
+
+//   // Helper: map files by fieldname
+//   const filesMap: { [key: string]: Express.Multer.File } = {};
+//   files.forEach((f) => {
+//     filesMap[f.fieldname] = f;
+//   });
+
+//   // Upload productType images
+//   const categoriesWithImages = await Promise.all(
+//     payload.categories.map(async (cat, index) => {
+//       const fileKey = `categories[${index}][productTypeImage]`;
+//       const productFile = filesMap[fileKey];
+//       if (!productFile)
+//         throw new AppError(
+//           `ProductType image missing for ${cat.productType}`,
+//           400,
+//         );
+
+//       const uploaded = await uploadToCloudinary(
+//         productFile.path,
+//         "product-type-img",
+//       );
+
+//       return {
+//         productType: cat.productType,
+//         productName: cat.productName,
+//         productImage: {
+//           url: uploaded.secure_url,
+//           public_id: uploaded.public_id,
+//         },
+//       };
+//     }),
+//   );
+
+//   // 🟢 CASE 1: Region exists → just push new productTypes
+//   if (existingRegion) {
+//     for (const cat of categoriesWithImages) {
+//       const alreadyProductType = existingRegion.categories.find(
+//         (c) => c.productType.toLowerCase() === cat.productType.toLowerCase(),
+//       );
+//       if (alreadyProductType) {
+//         throw new AppError(
+//           `Product type '${cat.productType}' already exists in ${regionName}`,
+//           409,
+//         );
+//       }
+//       existingRegion.categories.push(cat);
+//     }
+//     await existingRegion.save();
+//     return existingRegion;
+//   }
+
+//   // 🟢 CASE 2: New region → region image required
+//   if (!regionImg)
+//     throw new AppError("Region image is required for new region", 400);
+
+//   const uploadedRegionImage = await uploadToCloudinary(
+//     regionImg.path,
+//     "region-img",
+//   );
+
+//   const slug = generateShopSlug(regionName);
+//   // sanitize & map region name
+//   const cleanRegionName = sanitizeRegion(regionName);
+//   const mappedRegion = regionMap[cleanRegionName] || regionName;
+//   const mappedRegionLower = mappedRegion.toLowerCase(); // "africa"
+//   const countryList = countries
+//     .filter((c) => {
+//       const countryRegion = c.region?.toLowerCase() || "";
+//       const countrySubregion = c.subregion?.toLowerCase() || "";
+//       return (
+//         countryRegion.includes(mappedRegionLower) ||
+//         countrySubregion.includes(mappedRegionLower)
+//       );
+//     })
+//     .map((c) => c.name.common);
+
+//   console.log("Mapped Region:", mappedRegion); // Africa
+//   console.log("Country List:", countryList);
+
+//   // optional: warn if countryList empty
+//   if (countryList.length === 0) {
+//     console.warn(`No countries found for region: ${regionName}`);
+//   }
+
+//   // Create new region with productTypes
+//   const result = await category.create({
+//     region: regionName,
+//     slug,
+//     categories: categoriesWithImages,
+//     country: countryList,
+//     regionImage: {
+//       url: uploadedRegionImage.secure_url,
+//       public_id: uploadedRegionImage.public_id,
+//     },
+//   });
+
+//   return result;
+// };
 
 const createCategory = async (
   payload: ICategory,
@@ -54,6 +165,38 @@ const createCategory = async (
     }),
   );
 
+  // Helper function to get countries by region
+  const getCountriesByRegion = (inputRegion: string): string[] => {
+    // First, try to map the input to a standard region using regionMap
+    const cleanInput = sanitizeRegion(inputRegion);
+    const mappedRegion = regionMap[cleanInput] || inputRegion;
+    const mappedRegionLower = mappedRegion.toLowerCase();
+
+    // Filter countries based on region or subregion
+    const countryList = countries
+      .filter((c) => {
+        const countryRegion = c.region?.toLowerCase() || "";
+        const countrySubregion = c.subregion?.toLowerCase() || "";
+        const countryName = c.name.common.toLowerCase();
+
+        // Check if the country belongs to the mapped region
+        return (
+          countryRegion.includes(mappedRegionLower) ||
+          countrySubregion.includes(mappedRegionLower) ||
+          // Also check if the mapped region is part of the country's region/subregion
+          mappedRegionLower.includes(countryRegion) ||
+          mappedRegionLower.includes(countrySubregion) ||
+          // Special case for Africa/African
+          (mappedRegionLower.includes("africa") &&
+            countryRegion === "africa") ||
+          (mappedRegionLower.includes("african") && countryRegion === "africa")
+        );
+      })
+      .map((c) => c.name.common);
+
+    return countryList;
+  };
+
   // 🟢 CASE 1: Region exists → just push new productTypes
   if (existingRegion) {
     for (const cat of categoriesWithImages) {
@@ -82,16 +225,14 @@ const createCategory = async (
   );
 
   const slug = generateShopSlug(regionName);
-  const regionInput = regionName.toLowerCase();
-  const mappedRegion = regionMap[regionInput] || regionName;
 
-  const countryList = countries
-    .filter(
-      (c) =>
-        c.subregion?.toLowerCase() === mappedRegion.toLowerCase() ||
-        c.region?.toLowerCase() === mappedRegion.toLowerCase(),
-    )
-    .map((c) => c.name.common);
+  // Get countries for the region
+  const countryList = getCountriesByRegion(regionName);
+
+  // optional: warn if countryList empty
+  if (countryList.length === 0) {
+    console.warn(`No countries found for region: ${regionName}`);
+  }
 
   // Create new region with productTypes
   const result = await category.create({
